@@ -38,7 +38,7 @@ function playback(item) {
 const publicItem = (i) => ({
   id: i.id,
   type: i.type,
-  name: i.name,
+  name: i.title || i.name,
   logo: i.logo || '',
   group: i.group,
   num: i.num,
@@ -222,7 +222,8 @@ async function api(req, res, url) {
         : (seriesCache.get(i.seriesId)?.data.episodes || []);
       const idx = list.findIndex((e) => e.id === i.id);
       if (idx >= 0 && list[idx + 1]) out.nextId = list[idx + 1].id;
-      out.seriesName = catalog.items.get(i.seriesId)?.name;
+      const series = catalog.items.get(i.seriesId);
+      out.seriesName = series?.title || series?.name;
     }
     return sendJson(req, res, out);
   }

@@ -224,20 +224,9 @@ function homeHeader() {
   const h = now.getHours();
   const greet = h < 6 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   const date = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-  const last = store.recents.find((r) => r.type === 'live' && state.byId.has(r.id));
-  const ch = last && state.byId.get(last.id);
-  const cur = ch && epgFor(ch.id)?.[0];
   return `<header class="home-head">
     <div class="home-hello"><div class="home-date">${esc(date)}</div><h1>${greet}</h1></div>
     <div class="home-clock" id="homeClock">${clock(Date.now())}</div>
-    ${
-      ch
-        ? `<button class="resume focusable" data-play="${esc(ch.id)}">
-            <span class="resume-art">${art(ch, 'art-logo')}</span>
-            <span class="resume-text"><small>Continue watching</small><b>${esc(ch.name)}</b>${cur ? `<span>${esc(cur[2])}</span>` : ''}</span>
-            <span class="resume-play">${icon.play}</span></button>`
-        : ''
-    }
   </header>`;
 }
 

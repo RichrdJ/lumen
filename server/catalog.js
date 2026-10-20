@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { config, m3uFiles, epgFiles } from './config.js';
-import { applyFilter, countryOf } from './filter.js';
+import { applyFilter, cleanName, countryOf } from './filter.js';
 import { parseM3U, buildSeries } from './m3u.js';
 import { loadXtream, xtreamEpgUrl } from './xtream.js';
 import { fetchText, redact } from './util.js';
@@ -43,6 +43,9 @@ export function registerItem(item) {
 function apply(raw) {
   catalog.raw = raw;
   const data = applyFilter(raw, config.settings.filter);
+  // Display title; the raw name stays for filtering and EPG matching
+  const clean = config.settings.filter.cleanNames !== false;
+  for (const i of [...data.live, ...data.movies, ...data.series, ...data.episodes]) i.title = clean ? cleanName(i.name) : i.name;
   catalog.items = new Map();
   catalog.hosts = new Set();
   catalog.logos = new Set();
@@ -189,18 +192,18 @@ export function payload(type) {
   let list;
   if (type === 'live') {
     list = catalog.live;
-    items = list.map((i) => strip({ id: i.id, name: i.name, logo: i.logo, group: i.group, num: i.num }));
+    items = list.map((i) => strip({ id: i.id, name: i.title || i.name, logo: i.logo, group: i.group, num: i.num }));
   } else if (type === 'movie') {
     list = catalog.movies;
     items = list.map((i) =>
-      strip({ id: i.id, name: i.name, logo: i.logo, group: i.group, year: i.year, rating: i.rating, added: i.added }),
+      strip({ id: i.id, name: i.title || i.name, logo: i.logo, group: i.group, year: i.year, rating: i.rating, added: i.added }),
     );
   } else {
     list = catalog.series;
     items = list.map((i) =>
       strip({
         id: i.id,
-        name: i.name,
+        name: i.title || i.name,
         logo: i.logo,
         group: i.group,
         year: i.year,

@@ -52,6 +52,7 @@ Everything is configured in the app and stored in `/data/settings.json`:
 
 - **Sources** – M3U URLs, Xtream Codes account, XMLTV guide URLs, refresh interval, user agent. Files dropped into `/data` (`*.m3u`, `*.xml`, `*.xml.gz`) are picked up automatically.
 - **Filter** – pick countries (e.g. just UK and NL) and only those are shown, hide groups, hide by keyword, and choose whether the filter applies to everything or only live TV. A live preview shows how many channels remain. Countries are detected from `tvg-country`, `tvg-id` suffixes (`BBCOne.uk`) and prefixes like `UK:`, `NL |`, `[DE]`, `FR -`.
+- **Display** – hide country codes in channel names ("| NL | ESPN 1" becomes "ESPN 1"), on by default.
 - **Playback** – stream proxy, artwork cache, ffmpeg video re-encoding.
 - **Login** – optional username and password (stored hashed).
 
@@ -66,6 +67,7 @@ Environment variables still work as defaults for anything not yet saved in Setti
 | `EPG_URL`, `EPG_FILE` | XMLTV guides. |
 | `FILTER_COUNTRIES` | e.g. `UK,NL`. |
 | `FILTER_EXCLUDE` | Keywords to hide, comma separated. |
+| `CLEAN_NAMES` | `false` keeps country codes in channel names. |
 | `REFRESH_HOURS`, `PROXY`, `PROXY_IMAGES`, `USER_AGENT`, `TRANSCODE_VIDEO` | Same as in Settings. |
 | `AUTH_USER`, `AUTH_PASS` | Login. |
 | `PORT`, `DATA_DIR`, `TZ` | Container basics. |

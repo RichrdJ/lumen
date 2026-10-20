@@ -64,6 +64,20 @@ function fromText(text, allNames = false) {
   return n ? (allNames ? ALL_NAMES : NAMES)[n[2]] : null;
 }
 
+// Leading country tags in titles: "| NL | ESPN 1", "NL: NPO 1", "[UK] BBC One", "DE - ZDF", "FR-TF1"
+const TAG = /^\s*(?:[|[(]\s*)?([A-Za-z]{2,4})(\s*[|\])]|\s*:|\s+[|\-–]\s+|-(?=\s*\S))\s*/;
+
+export function cleanName(name) {
+  let out = name;
+  for (let i = 0; i < 3; i++) {
+    const m = TAG.exec(out);
+    // A dash separator is ambiguous ("TV - Live"), so only well-known codes count there
+    if (!m || !code(m[1], /-|–/.test(m[2]))) break;
+    out = out.slice(m[0].length).replace(/^[\s|:\-–]+/, '');
+  }
+  return out.trim() || name;
+}
+
 export function countryOf(item) {
   const tc = (item.tvgCountry || '').split(/[,;|\s]/)[0];
   if (tc) {

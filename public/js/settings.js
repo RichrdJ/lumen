@@ -83,6 +83,9 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
       <div class="set-subhead">Hide by keyword</div>
       ${field('excludeWords', 'Words to hide', (filter.excludeWords || []).join(', '), { placeholder: 'adult, xxx, 24/7, ppv', hint: 'Comma separated, matched against channel and group names.' })}
 
+      <div class="set-subhead">Display</div>
+      ${toggle('cleanNames', 'Hide country codes in channel names', 'Shows “| NL | ESPN 1 HD” as “ESPN 1 HD”. Groups keep their names.', filter.cleanNames !== false)}
+
       <div class="set-subhead">Groups</div>
       <div class="group-tools">
         <div class="segmented" id="groupType">
@@ -245,6 +248,9 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
     }),
   );
 
+  $('#cleanNames', v).addEventListener('change', (e) => {
+    filter.cleanNames = e.target.checked;
+  });
   $('#excludeWords', v).addEventListener('input', (e) => {
     filter.excludeWords = toList(e.target.value);
     preview();

@@ -35,6 +35,7 @@ const defaults = {
     hiddenGroups: [],
     excludeWords: list(env.FILTER_EXCLUDE),
     scope: 'all', // all | live
+    cleanNames: bool(env.CLEAN_NAMES, true),
   },
 };
 
@@ -147,6 +148,7 @@ export function saveSettings(patch) {
       hiddenGroups: Array.isArray(f.hiddenGroups) ? f.hiddenGroups.map(String) : [],
       excludeWords: list(f.excludeWords),
       scope: f.scope === 'live' ? 'live' : 'all',
+      cleanNames: f.cleanNames !== false,
     };
   }
   saved = next;
