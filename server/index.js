@@ -18,6 +18,7 @@ const vendor = {
   '/vendor/mpegts.js': path.join(root, 'node_modules', 'mpegts.js', 'dist', 'mpegts.js'),
 };
 const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+const commit = process.env.LUMEN_COMMIT || 'dev';
 
 // ---------- helpers ----------
 
@@ -175,6 +176,7 @@ async function api(req, res, url) {
     return sendJson(req, res, {
       name: 'Lumen',
       version,
+      commit: commit.slice(0, 7),
       configured: hasSources(),
       loading: catalog.loading,
       ready: catalog.updatedAt > 0,
@@ -387,7 +389,7 @@ function refreshAll() {
 }
 
 server.listen(config.port, async () => {
-  console.log(`[lumen] v${version} listening on http://0.0.0.0:${config.port}`);
+  console.log(`[lumen] v${version} (${commit.slice(0, 7)}) listening on http://0.0.0.0:${config.port}`);
   schedule();
   if (!hasSources()) {
     console.warn('[lumen] No sources yet. Open the app and add a playlist under Settings.');

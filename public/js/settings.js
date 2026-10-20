@@ -118,12 +118,20 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
       ${s.hasAuthPass ? '<button class="btn btn-glass focusable" id="removeAuth">Remove login</button>' : ''}
     </section>
 
+    <p class="set-version" id="setVersion"></p>
+
     <div class="save-bar" id="saveBar">
       <span id="saveState">No changes</span>
       <button class="btn btn-glass focusable" id="refreshNow">Reload playlist</button>
       <button class="btn btn-primary focusable" id="saveBtn" disabled>Save</button>
     </div>
   </div>`;
+
+  api('api/status')
+    .then((st) => {
+      $('#setVersion', v).textContent = `Lumen v${st.version}${st.commit && st.commit !== 'dev' ? ` · build ${st.commit}` : ''}`;
+    })
+    .catch(() => {});
 
   const saveBtn = $('#saveBtn', v);
   const markDirty = () => {

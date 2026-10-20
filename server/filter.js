@@ -49,13 +49,13 @@ function code(raw, strict) {
 }
 
 // "UK: BBC One", "NL | Sport", "[DE] ZDF", "|FR| TF1", "UK - Sports", "NL-Film"
-const PREFIX = /^\s*[[(|]?\s*([A-Za-z]{2,4})\s*(?:[\])|:]|\s[|\-–]\s|-(?=[A-Za-z]))/;
+const PREFIX = /^[\s​-‍⁠﻿]*[[(|｜│┃ǀ¦‖]?\s*([A-Za-z]{2,4})\s*(?:[\])|｜│┃ǀ¦‖:：]|\s[|｜│┃ǀ¦‖\-–—]\s|-(?=[A-Za-z]))/;
 
 function fromText(text, allNames = false) {
   if (!text) return null;
   const m = PREFIX.exec(text);
   if (m) {
-    const strictSep = /[:|\])]/.test(m[0]);
+    const strictSep = /[:：|｜│┃ǀ¦‖\])]/.test(m[0]);
     const c = code(m[1], !strictSep);
     if (c) return c;
   }
@@ -65,7 +65,12 @@ function fromText(text, allNames = false) {
 }
 
 // Leading country tags in titles: "| NL | ESPN 1", "NL: NPO 1", "[UK] BBC One", "DE - ZDF", "FR-TF1"
-const TAG = /^\s*(?:[|[(]\s*)?([A-Za-z]{2,4})(\s*[|\])]|\s*:|\s+[|\-–]\s+|-(?=\s*\S))\s*/;
+// Providers use look-alike bars (┃ ｜ │ ǀ ¦) and invisible characters, so match those too
+const BARS = '|｜│┃ǀ¦‖';
+const TAG = new RegExp(
+  `^[\\s\\u200b-\\u200d\\u2060\\ufeff]*(?:[${BARS}[(]\\s*)?([A-Za-z]{2,4})(\\s*[${BARS}\\])]|\\s*[:：]|\\s+[${BARS}\\-–—]\\s+|-(?=\\s*\\S))[\\s\\u200b-\\u200d\\u2060\\ufeff]*`,
+);
+const LEAD = new RegExp(`^[\\s\\u200b-\\u200d\\u2060\\ufeff${BARS}:：\\-–—]+`);
 
 export function cleanName(name) {
   let out = name;
@@ -73,7 +78,7 @@ export function cleanName(name) {
     const m = TAG.exec(out);
     // A dash separator is ambiguous ("TV - Live"), so only well-known codes count there
     if (!m || !code(m[1], /-|–/.test(m[2]))) break;
-    out = out.slice(m[0].length).replace(/^[\s|:\-–]+/, '');
+    out = out.slice(m[0].length).replace(LEAD, '');
   }
   return out.trim() || name;
 }

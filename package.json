@@ -1,6 +1,6 @@
 {
   "name": "lumen",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A smooth, Apple TV-style web player for M3U / Xtream IPTV playlists with EPG.",
   "type": "module",
   "private": true,

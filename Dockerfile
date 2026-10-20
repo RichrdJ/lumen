@@ -6,9 +6,12 @@ RUN npm ci --omit=dev && npm cache clean --force
 FROM node:22-alpine
 RUN apk add --no-cache ffmpeg tini su-exec
 WORKDIR /app
+# Declared after the apk layer so a new commit doesn't invalidate it
+ARG GIT_SHA=dev
 ENV NODE_ENV=production \
     PORT=4242 \
-    DATA_DIR=/data
+    DATA_DIR=/data \
+    LUMEN_COMMIT=$GIT_SHA
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY server ./server
