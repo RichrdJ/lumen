@@ -22,7 +22,7 @@ services:
     image: ghcr.io/richrdj/lumen:latest
     restart: unless-stopped
     ports:
-      - "4040:4040"
+      - "4242:4242"
     volumes:
       - ./data:/data
     environment:
@@ -41,7 +41,7 @@ docker stack deploy -c docker-stack.yml --with-registry-auth lumen
 
 In Portainer: *Stacks → Add stack*, paste [`docker-stack.yml`](docker-stack.yml) and deploy.
 
-Then open `http://<host>:4040` and go to **Settings** (gear icon) to add your playlist.
+Then open `http://<host>:4242` and go to **Settings** (gear icon) to add your playlist.
 
 > The image is private while the repository is private: run `docker login ghcr.io` with a GitHub token that has `read:packages` first (or add the registry in Portainer).
 
@@ -87,7 +87,7 @@ Right-click (or long-press) a card to toggle it as a favorite.
 
 ```bash
 npm install
-npm run dev   # then open http://localhost:4040/#/settings
+npm run dev   # then open http://localhost:4242/#/settings
 ```
 
 No build step: the frontend is plain ES modules in `public/`, the server is dependency-light Node in `server/`.

@@ -50,7 +50,7 @@ function readSaved() {
 let saved = readSaved();
 
 export const config = {
-  port: Number(env.PORT) || 4040,
+  port: Number(env.PORT) || 4242,
   dataDir,
   ffmpeg: env.FFMPEG_PATH || 'ffmpeg',
   epgPastHours: Number(env.EPG_PAST_HOURS) || 3,
