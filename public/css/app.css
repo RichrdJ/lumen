@@ -2645,7 +2645,6 @@ button.row-more {
 .card-play svg {
   width: 24px;
   height: 24px;
-  margin-left: 3px;
 }
 .card-ch .art::after {
   content: '';
