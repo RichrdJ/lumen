@@ -2,7 +2,7 @@
 
 A smooth, Apple TV–style web player for your IPTV playlist. Point it at an M3U file, an M3U URL or an Xtream Codes account and get a living-room-grade interface in any browser — with a TV guide, movies, series, favorites and resume.
 
-- **Feels native** – frosted-glass UI, cards that lift on focus, hero banner with what's on now, smooth horizontal rows.
+- **Feels native** – frosted-glass UI, cards that lift on focus, smooth horizontal rows.
 - **Fast with huge playlists** – the playlist is parsed and cached server-side; grids and the guide are virtualized, so 20,000+ channels scroll like 20.
 - **Plays (almost) everything** – HLS via hls.js, raw MPEG-TS via mpegts.js, MP4/MKV natively, with an automatic ffmpeg fallback that converts AC3/EAC3 audio for browsers that can't decode it.
 - **No CORS or mixed-content headaches** – streams, playlists and logos are proxied (logos cached on disk).
@@ -10,7 +10,7 @@ A smooth, Apple TV–style web player for your IPTV playlist. Point it at an M3U
 - **Remote-friendly** – full arrow-key / D-pad navigation, channel up/down zapping with an on-screen display, media keys, swipe-to-zap on phones.
 - **Movies & series** – posters, details, seasons/episodes, "continue watching" with resume, auto-play next episode.
 - **Settings in the app** – sources, country/group filter, playback and login, no compose editing needed.
-- **Favorites-first Home** – heart any channel, movie or series; favorites are stored on the server and shared by all your devices.
+- **Favorites-first Home** – heart any channel, movie or series, drag them into your own order, and see what's on them in a compact 3-hour mini guide. Favorites are stored on the server and shared by all your devices.
 - **Per-device history**, multi-arch Docker image (amd64 / arm64), compose and Swarm stack files.
 
 ## Quick start

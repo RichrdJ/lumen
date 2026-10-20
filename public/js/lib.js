@@ -103,6 +103,13 @@ export const store = {
     store.onFavChange?.(id);
     return store.favorites.has(id);
   },
+  // Puts `ids` in the given order; favorites not in `ids` keep their relative order after them
+  reorderFavorites(ids) {
+    const rest = [...store.favorites].filter((id) => !ids.includes(id));
+    store.favorites = new Set([...ids.filter((id) => store.favorites.has(id)), ...rest]);
+    write('favorites', [...store.favorites]);
+    pushFavorites();
+  },
   // Favorites live on the server so every device sees the same list; the local copy is a fallback
   async syncFavorites() {
     try {
@@ -309,4 +316,142 @@ export function toast(message, action) {
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), action ? 6000 : 3000);
+}
+
+// ---------- drag-to-reorder grid ----------
+
+// Mouse can always drag; touch and remotes only while the grid has the "editing" class.
+// Keyboard: Enter/Space picks a tile up, arrows move it, Enter/Space/Escape drops it.
+export function sortable(grid, { onSort }) {
+  const cards = () => $$(':scope > .card', grid);
+  const ids = () => cards().map((c) => c.dataset.play || c.dataset.open);
+  let drag = null;
+  let suppressClick = false;
+
+  // Animate tiles from their old to their new position after a DOM move
+  const flip = (move) => {
+    const before = new Map(cards().map((c) => [c, c.getBoundingClientRect()]));
+    move();
+    for (const c of cards()) {
+      const a = before.get(c);
+      const b = c.getBoundingClientRect();
+      if (!a || c.classList.contains('drag-placeholder')) continue;
+      const dx = a.left - b.left;
+      const dy = a.top - b.top;
+      if (!dx && !dy) continue;
+      c.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], {
+        duration: 260,
+        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+      });
+    }
+  };
+
+  const columns = () => {
+    const list = cards();
+    const top = list[0]?.offsetTop;
+    return Math.max(1, list.filter((c) => c.offsetTop === top).length);
+  };
+
+  function start(e) {
+    const r = drag.card.getBoundingClientRect();
+    const ghost = drag.card.cloneNode(true);
+    ghost.classList.add('drag-ghost');
+    ghost.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px`;
+    document.body.appendChild(ghost);
+    drag.card.classList.add('drag-placeholder');
+    Object.assign(drag, { ghost, ox: e.clientX - r.left, oy: e.clientY - r.top, started: true });
+    grid.classList.add('dragging');
+  }
+
+  function move(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    if (!drag.started) {
+      if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8) return;
+      start(e);
+    }
+    e.preventDefault();
+    drag.ghost.style.left = `${e.clientX - drag.ox}px`;
+    drag.ghost.style.top = `${e.clientY - drag.oy}px`;
+    // Keep scrolling while dragging near the top or bottom edge
+    if (e.clientY < 90) window.scrollBy(0, -14);
+    else if (e.clientY > innerHeight - 90) window.scrollBy(0, 14);
+    const over = cards().find((c) => {
+      if (c === drag.card) return false;
+      const b = c.getBoundingClientRect();
+      return e.clientX > b.left && e.clientX < b.right && e.clientY > b.top && e.clientY < b.bottom;
+    });
+    if (!over) return;
+    const list = cards();
+    const after = list.indexOf(over) > list.indexOf(drag.card);
+    flip(() => over.insertAdjacentElement(after ? 'afterend' : 'beforebegin', drag.card));
+  }
+
+  function end(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', end);
+    window.removeEventListener('pointercancel', end);
+    const d = drag;
+    drag = null;
+    if (!d.started) return;
+    suppressClick = true;
+    setTimeout(() => (suppressClick = false), 50);
+    const to = d.card.getBoundingClientRect();
+    const anim = d.ghost.animate(
+      [{ left: d.ghost.style.left, top: d.ghost.style.top }, { left: `${to.left}px`, top: `${to.top}px` }],
+      { duration: 180, easing: 'ease-out' },
+    );
+    anim.onfinish = () => {
+      d.ghost.remove();
+      d.card.classList.remove('drag-placeholder');
+      grid.classList.remove('dragging');
+    };
+    onSort(ids());
+  }
+
+  grid.addEventListener('pointerdown', (e) => {
+    const card = e.target.closest('.card');
+    if (!card || card.parentElement !== grid || e.button !== 0 || e.target.closest('.card-fav')) return;
+    if (e.pointerType !== 'mouse' && !grid.classList.contains('editing')) return;
+    drag = { card, x0: e.clientX, y0: e.clientY, pointerId: e.pointerId, started: false };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  });
+  // Native image dragging would hijack the gesture
+  grid.addEventListener('dragstart', (e) => e.preventDefault());
+  grid.addEventListener(
+    'click',
+    (e) => {
+      if (suppressClick || (grid.classList.contains('editing') && !e.target.closest('.card-fav'))) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+    true,
+  );
+
+  grid.addEventListener('keydown', (e) => {
+    const card = e.target.closest?.('.card');
+    if (!card || card.parentElement !== grid || !grid.classList.contains('editing')) return;
+    const lifted = card.classList.contains('lifted');
+    if (e.key === 'Enter' || e.key === ' ' || (lifted && e.key === 'Escape')) {
+      e.preventDefault();
+      e.stopPropagation();
+      card.classList.toggle('lifted');
+      if (lifted) onSort(ids());
+      return;
+    }
+    if (!lifted || !e.key.startsWith('Arrow')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const list = cards();
+    const i = list.indexOf(card);
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns(), ArrowDown: columns() }[e.key];
+    const j = Math.max(0, Math.min(list.length - 1, i + step));
+    if (j === i) return;
+    flip(() => list[j].insertAdjacentElement(j > i ? 'afterend' : 'beforebegin', card));
+    card.focus({ preventScroll: true });
+    card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
 }

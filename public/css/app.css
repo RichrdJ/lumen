@@ -2316,6 +2316,310 @@ textarea.field {
   text-decoration: none;
 }
 
+/* ---------- home: header, mini guide, edit order ---------- */
+
+.home-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 18px 24px;
+  padding: 26px 0 6px;
+}
+.home-date {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: capitalize;
+}
+.home-hello h1 {
+  margin: 2px 0 0;
+  font-size: clamp(30px, 4vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.home-clock {
+  font-size: clamp(30px, 4vw, 48px);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.9);
+}
+.resume {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(560px, 100%);
+  padding: 8px 10px 8px 8px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.25s var(--ease), box-shadow 0.25s;
+}
+.resume:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.resume:focus-visible {
+  transform: scale(1.03);
+  box-shadow: 0 0 0 3px #fff;
+}
+.resume-art {
+  flex: none;
+  width: 92px;
+  aspect-ratio: 16 / 9;
+  border-radius: 11px;
+  overflow: hidden;
+}
+.resume-art .initials {
+  font-size: 13px;
+}
+.resume-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.resume-text small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.resume-text b,
+.resume-text span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.resume-text span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.resume-play {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+}
+.resume-play svg {
+  width: 20px;
+  height: 20px;
+}
+.view-home .rows {
+  margin-top: 0;
+}
+
+.mg {
+  --mg-ch: 210px;
+  margin-top: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  overflow: hidden;
+}
+.mg-row {
+  display: grid;
+  grid-template-columns: var(--mg-ch) 1fr;
+  height: 58px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.mg-ruler {
+  height: 34px;
+  border-top: 0;
+}
+.mg-ruler .mg-track span {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  padding-left: 8px;
+  border-left: 1px solid var(--stroke);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mg-ch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid var(--stroke);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.mg-ch .art {
+  flex: none;
+  width: 56px;
+  height: 34px;
+  border-radius: 7px;
+}
+.mg-ch .art img {
+  padding: 8% 10%;
+}
+.mg-ch .initials {
+  font-size: 11px;
+}
+.mg-ch > span:last-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mg-ch:hover {
+  background: var(--surface);
+}
+.mg-ch:focus-visible {
+  background: #fff;
+  color: #000;
+}
+.mg-track {
+  position: relative;
+  min-width: 0;
+}
+.mg-prog {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  margin-left: 2px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.mg-prog.now {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) var(--p), rgba(255, 255, 255, 0.1) var(--p));
+}
+.mg-prog.past {
+  opacity: 0.4;
+}
+.mg-prog b,
+.mg-prog small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mg-prog b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.mg-prog small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.mg-prog:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.mg-prog:focus-visible {
+  background: #fff;
+  color: #000;
+  opacity: 1;
+}
+.mg-prog:focus-visible small {
+  color: rgba(0, 0, 0, 0.6);
+}
+.mg-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--live);
+  box-shadow: 0 0 10px rgba(255, 59, 48, 0.7);
+  pointer-events: none;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+}
+button.row-more {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.edit-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.fav-grid.editing .card {
+  touch-action: none;
+  cursor: grab;
+  animation: jiggle 0.32s ease-in-out infinite alternate;
+}
+.fav-grid.editing .card:nth-child(2n) {
+  animation-delay: -0.16s;
+}
+.fav-grid.dragging .card,
+.fav-grid.editing .card.lifted {
+  animation: none;
+}
+.fav-grid.editing .card:hover .card-frame {
+  transform: none;
+}
+.fav-grid.editing .card.lifted .card-frame {
+  transform: scale(1.1);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.7), 0 0 0 3px #fff;
+}
+@keyframes jiggle {
+  from {
+    transform: rotate(-0.8deg);
+  }
+  to {
+    transform: rotate(0.8deg);
+  }
+}
+.drag-placeholder {
+  opacity: 0.25;
+}
+.drag-ghost {
+  position: fixed;
+  z-index: 300;
+  pointer-events: none;
+  margin: 0;
+  cursor: grabbing;
+}
+.drag-ghost .card-frame {
+  transform: scale(1.08) rotate(1.5deg);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.75), 0 0 0 3px #fff;
+}
+@media (max-width: 720px) {
+  .mg {
+    --mg-ch: 72px;
+  }
+  .mg-ch > span:last-child {
+    display: none;
+  }
+  .home-head {
+    padding-top: 14px;
+  }
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 900px) {

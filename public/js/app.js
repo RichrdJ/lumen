@@ -1,4 +1,4 @@
-import { $, $$, api, clock, debounce, el, esc, hue, icon, initials, minutes, spatialMove, store, toast, VirtualGrid } from './lib.js';
+import { $, $$, api, clock, debounce, el, esc, hue, icon, initials, minutes, sortable, spatialMove, store, toast, VirtualGrid } from './lib.js';
 import { Player } from './player.js';
 import { viewSettings } from './settings.js';
 
@@ -148,13 +148,13 @@ async function viewHome(v, _args, token) {
   const live = s.counts.live ? await section('live') : null;
   if (token !== state.routeToken) return;
 
-  // Home is the user's own space: only what they marked as favorite
+  // Home is the user's own space: only their favorites, in their own order
+  const favsOf = (type) => [...store.favorites].map((id) => state.byId.get(id)).filter((i) => i && i.type === type);
   const render = () => {
-    const favLive = live ? live.items.filter((c) => store.isFav(c.id)) : [];
-    const favVod = ['movie', 'series'].map((t) => (state.loaded[t]?.items || []).filter((m) => store.isFav(m.id)));
-    const anything = favLive.length || favVod[0].length || favVod[1].length;
-    if (!anything) {
-      clearInterval(heroTimer);
+    const favLive = favsOf('live');
+    const favVod = [favsOf('movie'), favsOf('series')];
+    state.homeFavs = favLive;
+    if (!favLive.length && !favVod[0].length && !favVod[1].length) {
       const vodPending = ['movie', 'series'].some((t) => s.counts[t] && !state.loaded[t]);
       v.innerHTML = vodPending
         ? '<div class="view-loading"><div class="spinner"></div></div>'
@@ -167,24 +167,50 @@ async function viewHome(v, _args, token) {
           </div></div>`;
       return;
     }
-    v.innerHTML = `<div class="hero" id="hero"></div>
+    v.innerHTML = `${homeHeader()}
       <div class="rows">
+        <div id="mini-guide"></div>
         ${
           favLive.length
             ? `<section class="home-section"><header class="row-head"><h2>Favorite Channels</h2>
-                <a class="row-more focusable" href="#/guide/__fav">Guide ${icon.chevronR}</a></header>
+                <div class="row-actions"><button class="row-more focusable" id="editOrder">Edit order</button></div></header>
+                <p class="edit-hint" hidden>Drag the tiles into your own order. With a remote: Enter picks a tile up, arrows move it, Enter drops it.</p>
                 <div class="fav-grid">${favLive.map(channelCard).join('')}</div></section>`
             : ''
         }
         ${row('Favorite Movies', favVod[0].map(posterCard))}
         ${row('Favorite Series', favVod[1].map(posterCard))}
       </div>`;
-    hero($('#hero', v), favLive);
+    const grid = $('.fav-grid', v);
+    if (grid) {
+      sortable(grid, {
+        onSort: (ids) => {
+          store.reorderFavorites(ids);
+          state.homeFavs = ids.map((id) => state.byId.get(id)).filter(Boolean);
+          miniGuide($('#mini-guide', v), state.homeFavs);
+        },
+      });
+      $('#editOrder', v).addEventListener('click', (e) => {
+        const on = grid.classList.toggle('editing');
+        e.currentTarget.textContent = on ? 'Done' : 'Edit order';
+        $('.edit-hint', v).hidden = !on;
+        if (!on) $$('.lifted', grid).forEach((c) => c.classList.remove('lifted'));
+      });
+    }
+    miniGuide($('#mini-guide', v), favLive);
   };
   render();
-  state.onEpg = () => updateLiveCards(v);
+  state.onEpg = () => {
+    updateLiveCards(v);
+    miniGuide($('#mini-guide', v), state.homeFavs || []);
+  };
   state.onReturn = render;
   state.onFavsChanged = render;
+  const tick = setInterval(() => {
+    const el = $('#homeClock', v);
+    if (el) el.textContent = clock(Date.now());
+  }, 10000);
+  state.cleanup.push(() => clearInterval(tick));
 
   // VOD sections load after the first paint so home stays instant
   for (const type of ['movie', 'series']) {
@@ -193,6 +219,93 @@ async function viewHome(v, _args, token) {
   }
 }
 
+function homeHeader() {
+  const now = new Date();
+  const h = now.getHours();
+  const greet = h < 6 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const date = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  const last = store.recents.find((r) => r.type === 'live' && state.byId.has(r.id));
+  const ch = last && state.byId.get(last.id);
+  const cur = ch && epgFor(ch.id)?.[0];
+  return `<header class="home-head">
+    <div class="home-hello"><div class="home-date">${esc(date)}</div><h1>${greet}</h1></div>
+    <div class="home-clock" id="homeClock">${clock(Date.now())}</div>
+    ${
+      ch
+        ? `<button class="resume focusable" data-play="${esc(ch.id)}">
+            <span class="resume-art">${art(ch, 'art-logo')}</span>
+            <span class="resume-text"><small>Continue watching</small><b>${esc(ch.name)}</b>${cur ? `<span>${esc(cur[2])}</span>` : ''}</span>
+            <span class="resume-play">${icon.play}</span></button>`
+        : ''
+    }
+  </header>`;
+}
+
+// Compact "now + next 3 hours" timeline of the user's favorite channels
+const MG_SPAN = 3 * 3600e3;
+let mgCache = { t0: 0, data: new Map() };
+
+async function miniGuide(host, favs) {
+  if (!host) return;
+  const list = favs.filter((c) => epgFor(c.id)).slice(0, 12);
+  if (!list.length) {
+    host.innerHTML = '';
+    return;
+  }
+  const t0 = Math.floor(Date.now() / 1800e3) * 1800e3;
+  const t1 = t0 + MG_SPAN;
+  if (mgCache.t0 !== t0) mgCache = { t0, data: new Map() };
+  const missing = list.filter((c) => !mgCache.data.has(c.id)).map((c) => c.id);
+  if (missing.length) {
+    try {
+      const r = await api(`api/epg/range?ids=${missing.map(encodeURIComponent).join(',')}&from=${t0}&to=${t1}`);
+      for (const id of missing) mgCache.data.set(id, r[id] || []);
+    } catch {
+      return;
+    }
+  }
+  if (!host.isConnected) return;
+  const now = Date.now();
+  const pct = (t) => ((Math.min(Math.max(t, t0), t1) - t0) / MG_SPAN) * 100;
+  const ticks = [0, 1, 2, 3, 4, 5].map((i) => t0 + i * 1800e3);
+  const focused = host.contains(document.activeElement) ? document.activeElement.dataset : null;
+  host.innerHTML = `<section class="home-section">
+    <header class="row-head"><h2>On your channels</h2><a class="row-more focusable" href="#/guide/__fav">Full guide ${icon.chevronR}</a></header>
+    <div class="mg">
+      <div class="mg-row mg-ruler"><span class="mg-ch"></span><div class="mg-track">${ticks.map((t) => `<span style="left:${pct(t)}%">${clock(t)}</span>`).join('')}</div></div>
+      ${list
+        .map((c) => {
+          const progs = (mgCache.data.get(c.id) || [])
+            .map(([s, e, title]) => {
+              const l = pct(s);
+              const w = pct(e) - l;
+              if (w < 0.5) return '';
+              const live = s <= now && e > now;
+              const p = live ? ((now - s) / (e - s)) * 100 : 0;
+              return `<button class="mg-prog focusable${live ? ' now' : ''}${e <= now ? ' past' : ''}" style="left:${l}%;width:calc(${w}% - 4px);--p:${p}%"
+                data-ch="${esc(c.id)}" data-s="${s}" data-e="${e}" data-t="${esc(title)}"><b>${esc(title)}</b><small>${clock(s)}</small></button>`;
+            })
+            .join('');
+          return `<div class="mg-row">
+            <button class="mg-ch focusable" data-play="${esc(c.id)}" title="${esc(c.name)}">${art(c, 'art-logo')}<span>${esc(c.name)}</span></button>
+            <div class="mg-track">${progs}<i class="mg-now" style="left:${pct(now)}%"></i></div></div>`;
+        })
+        .join('')}
+    </div></section>`;
+  if (focused?.ch && focused.s) $(`.mg-prog[data-ch="${CSS.escape(focused.ch)}"][data-s="${focused.s}"]`, host)?.focus({ preventScroll: true });
+  else if (focused?.play) $(`.mg-ch[data-play="${CSS.escape(focused.play)}"]`, host)?.focus({ preventScroll: true });
+  host.onclick = (e) => {
+    const p = e.target.closest('.mg-prog');
+    if (!p) return;
+    const s = Number(p.dataset.s);
+    const end = Number(p.dataset.e);
+    const t = Date.now();
+    state.zapContext = state.homeFavs;
+    if (s <= t && end > t) return player.open(p.dataset.ch);
+    const ch = state.byId.get(p.dataset.ch);
+    toast(`${ch?.name || ''} · ${clock(s)} – ${clock(end)} · ${p.dataset.t}`, { label: 'Watch channel', run: () => player.open(p.dataset.ch) });
+  };
+}
 // Refresh "now playing" text and progress bars of live cards without re-rendering them
 function updateLiveCards(root) {
   for (const c of $$('.card[data-play]', root)) {
@@ -210,52 +323,6 @@ function updateLiveCards(root) {
     else bar?.remove();
   }
 }
-let heroTimer = 0;
-function hero(host, favs) {
-  clearInterval(heroTimer);
-  if (!favs.length) {
-    host.innerHTML = '';
-    host.classList.add('hero-empty');
-    return;
-  }
-  // Favorites that are on air with guide info first
-  const slides = [...favs].sort((a, b) => !!epgFor(b.id)?.[0] - !!epgFor(a.id)?.[0]).slice(0, 6);
-  let idx = 0;
-
-  const show = () => {
-    const c = slides[idx];
-    const { cur, pct } = liveProgress(c.id);
-    const next = epgFor(c.id)?.[1];
-    host.innerHTML = `
-      <div class="hero-bg" style="--h:${hue(c.name)}">${c.logo ? `<img src="${esc(img(c.logo))}" alt="">` : ''}</div>
-      <div class="hero-shade"></div>
-      <div class="hero-content">
-        <div class="hero-kicker"><span class="live-pill">LIVE</span><span>${esc(cur ? c.name : c.group)}</span></div>
-        <h1 class="hero-title">${esc(cur ? cur[2] : c.name)}</h1>
-        ${cur || next ? `<p class="hero-sub">${cur ? `${clock(cur[0])} – ${clock(cur[1])}` : ''}${cur && next ? ' · ' : ''}${next ? `Up next: ${esc(next[2])}` : ''}</p>` : '<p class="hero-sub">&nbsp;</p>'}
-        ${cur ? `<div class="hero-progress"><i style="width:${pct}%"></i></div>` : ''}
-        <div class="hero-actions">
-          <button class="btn btn-primary focusable" data-play="${esc(c.id)}">${icon.play}<span>Watch Live</span></button>
-          <button class="btn btn-glass btn-icon focusable ${store.isFav(c.id) ? 'on' : ''}" data-fav="${esc(c.id)}" aria-label="Favorite">${store.isFav(c.id) ? icon.heart : icon.heartLine}</button>
-        </div>
-      </div>
-      <div class="hero-art">${art(c, 'art-logo')}</div>
-      ${slides.length > 1 ? `<div class="hero-dots">${slides.map((_, i) => `<i class="${i === idx ? 'on' : ''}"></i>`).join('')}</div>` : ''}`;
-    requestAnimationFrame(() => host.classList.add('in'));
-  };
-  show();
-  if (slides.length < 2) return;
-  heroTimer = setInterval(() => {
-    if (host.contains(document.activeElement) || !host.isConnected || document.hidden) return;
-    host.classList.remove('in');
-    setTimeout(() => {
-      idx = (idx + 1) % slides.length;
-      show();
-    }, 450);
-  }, 9000);
-  state.cleanup.push(() => clearInterval(heroTimer));
-}
-
 // ---------- live tv ----------
 
 async function viewLive(v, [groupArg], token) {
@@ -792,7 +859,7 @@ document.addEventListener('click', (e) => {
     s.scrollBy({ left: Number(t.dataset.scroll) * s.clientWidth * 0.85, behavior: 'smooth' });
   } else if (t.dataset.play) {
     state.lastFocus = t;
-    if (!t.closest('.view-live, .view-guide')) state.zapContext = null;
+    if (!t.closest('.view-live, .view-guide')) state.zapContext = t.closest('.view-home') ? state.homeFavs : null;
     player.open(t.dataset.play);
   } else if (t.dataset.open) {
     state.lastFocus = t;
