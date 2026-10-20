@@ -580,7 +580,7 @@ export class Player {
     const list = this.channelList(this.item);
     this.zapList = list;
     this.zapIndex = list.findIndex((c) => c.id === this.item.id);
-    this.ui.drawerHead.textContent = this.item.group || 'Channels';
+    this.ui.drawerHead.textContent = list.label || this.item.group || 'Channels';
     const rows = list
       .slice(0, 800)
       .map((c) => {

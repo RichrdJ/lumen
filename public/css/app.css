@@ -2620,6 +2620,62 @@ button.row-more {
   }
 }
 
+/* ---------- play hint on channel tiles ---------- */
+
+.card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  color: #fff;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition: opacity 0.25s, transform 0.35s var(--ease);
+  pointer-events: none;
+}
+.card-play svg {
+  width: 24px;
+  height: 24px;
+  margin-left: 3px;
+}
+.card-ch .art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+@media (hover: hover) {
+  .card-ch:hover .card-play {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .card-ch:hover .art::after {
+    opacity: 1;
+  }
+}
+.card-ch:focus-visible .card-play {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.card-ch:focus-visible .art::after {
+  opacity: 1;
+}
+.fav-grid.editing .card-play,
+.fav-grid.editing .art::after {
+  display: none;
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 900px) {

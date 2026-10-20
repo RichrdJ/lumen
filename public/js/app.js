@@ -80,7 +80,7 @@ function updateFavButtons(id) {
 function channelCard(c) {
   const { cur, pct } = liveProgress(c.id);
   return `<button class="card card-ch focusable" data-play="${esc(c.id)}" title="${esc(c.name)}">
-    <span class="card-frame">${art(c, 'art-logo')}${favButton(c.id)}
+    <span class="card-frame">${art(c, 'art-logo')}<span class="card-play" aria-hidden="true">${icon.play}</span>${favButton(c.id)}
       ${cur ? `<span class="card-progress"><i style="width:${pct}%"></i></span>` : ''}</span>
     <span class="card-meta"><span class="card-title">${c.num ? `<em>${c.num}</em>` : ''}${esc(c.name)}</span>
     <span class="card-sub">${cur ? esc(cur[2]) : '&nbsp;'}</span></span></button>`;
@@ -153,7 +153,7 @@ async function viewHome(v, _args, token) {
   const render = () => {
     const favLive = favsOf('live');
     const favVod = [favsOf('movie'), favsOf('series')];
-    state.homeFavs = favLive;
+    state.homeFavs = Object.assign(favLive, { label: 'Favorites' });
     if (!favLive.length && !favVod[0].length && !favVod[1].length) {
       const vodPending = ['movie', 'series'].some((t) => s.counts[t] && !state.loaded[t]);
       v.innerHTML = vodPending
@@ -186,7 +186,7 @@ async function viewHome(v, _args, token) {
       sortable(grid, {
         onSort: (ids) => {
           store.reorderFavorites(ids);
-          state.homeFavs = ids.map((id) => state.byId.get(id)).filter(Boolean);
+          state.homeFavs = Object.assign(ids.map((id) => state.byId.get(id)).filter(Boolean), { label: 'Favorites' });
           miniGuide($('#mini-guide', v), state.homeFavs);
         },
       });
@@ -255,8 +255,10 @@ async function miniGuide(host, favs) {
   }
   if (!host.isConnected) return;
   const now = Date.now();
-  const pct = (t) => ((Math.min(Math.max(t, t0), t1) - t0) / MG_SPAN) * 100;
-  const ticks = [0, 1, 2, 3, 4, 5].map((i) => t0 + i * 1800e3);
+  // Phones get a shorter window so titles stay readable
+  const span = innerWidth < 720 ? MG_SPAN / 2 : MG_SPAN;
+  const pct = (t) => ((Math.min(Math.max(t, t0), t0 + span) - t0) / span) * 100;
+  const ticks = Array.from({ length: span / 1800e3 }, (_, i) => t0 + i * 1800e3);
   const focused = host.contains(document.activeElement) ? document.activeElement.dataset : null;
   host.innerHTML = `<section class="home-section">
     <header class="row-head"><h2>On your channels</h2><a class="row-more focusable" href="#/guide/__fav">Full guide ${icon.chevronR}</a></header>
@@ -353,7 +355,7 @@ async function viewLive(v, [groupArg], token) {
   };
   const apply = () => {
     const items = list();
-    state.zapContext = items;
+    state.zapContext = Object.assign(items, { label: group === '__all' ? 'All Channels' : group === '__fav' ? 'Favorites' : group });
     $('.page-head h1', v).textContent = group === '__all' ? 'All Channels' : group === '__fav' ? 'Favorites' : group;
     $('.page-head .count', v).textContent = `${items.length} channels`;
     $$('.group-btn', v).forEach((b) => b.classList.toggle('active', b.dataset.group === group));
