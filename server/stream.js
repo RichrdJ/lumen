@@ -10,12 +10,19 @@ import { redact, upstreamHeaders } from './util.js';
 const b64 = (s) => Buffer.from(s).toString('base64url');
 const unb64 = (s) => Buffer.from(s || '', 'base64url').toString();
 
-const isPlaylist = (url, type) => /mpegurl/i.test(type) || /\.m3u8(\?|$)/i.test(url);
+// Some providers serve playlists as text/plain or octet-stream, so fall back to the URL
+const isPlaylist = (url, type) =>
+  /mpegurl/i.test(type) || /\.m3u8(\?|$)/i.test(url) || (/^$|text\/plain|octet-stream/i.test(type) && /m3u/i.test(url));
 
 // Point every URI in an HLS playlist back at our proxy. Relative, so sub-path deployments work:
 // playlists are always served from /api/play?… or /api/proxy?…, which both resolve to /api/proxy.
 function rewritePlaylist(text, base, itemId) {
-  const proxied = (u) => `proxy?i=${encodeURIComponent(itemId)}&u=${b64(new URL(u, base).href)}`;
+  const proxied = (u) => {
+    const abs = new URL(u, base);
+    // Segments often live on a CDN host that never appears in the playlist itself
+    catalog.hosts.add(abs.host);
+    return `proxy?i=${encodeURIComponent(itemId)}&u=${b64(abs.href)}`;
+  };
   return text
     .split(/\r?\n/)
     .map((line) => {
