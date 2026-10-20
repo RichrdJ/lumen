@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050507" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Lumen</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="css/app.css" />
+    <script type="module" src="js/app.js"></script>
+  </head>
+  <body>
+    <div id="splash" class="splash">
+      <div class="splash-mark"></div>
+      <div class="splash-name">Lumen</div>
+      <div class="splash-text">&nbsp;</div>
+    </div>
+
+    <header class="topbar" id="topbar">
+      <a class="brand" href="#/home" tabindex="-1"><span class="brand-mark"></span><span>Lumen</span></a>
+      <nav class="tabs" id="tabs">
+        <a class="focusable" href="#/home" data-tab="home">Home</a>
+        <a class="focusable" href="#/live" data-tab="live">Live TV</a>
+        <a class="focusable" href="#/guide" data-tab="guide">Guide</a>
+        <a class="focusable" href="#/movies" data-tab="movies">Movies</a>
+        <a class="focusable" href="#/series" data-tab="series">Series</a>
+      </nav>
+      <div class="topbar-actions">
+        <button class="icon-btn focusable" id="searchBtn" aria-label="Search (/)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z" /></svg>
+        </button>
+        <button class="icon-btn focusable" id="refreshBtn" aria-label="Refresh playlist">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A8 8 0 1 0 19.73 14h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="view" class="view"></main>
+
+    <div id="search" class="search" hidden>
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z" /></svg>
+        <input class="search-input focusable" type="search" placeholder="Channels, movies, series" autocomplete="off" spellcheck="false" aria-label="Search" />
+        <button class="btn btn-glass focusable" data-close-search>Cancel</button>
+      </div>
+      <div class="search-results"></div>
+    </div>
+
+    <div id="sheet" class="sheet" hidden></div>
+    <div id="player" class="player" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
