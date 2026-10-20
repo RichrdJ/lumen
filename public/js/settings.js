@@ -28,6 +28,7 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
 
   // Working copy of the filter; everything else is read straight from the inputs on save
   const filter = structuredClone(s.filter);
+  delete filter.keepUnknown;
   let groupType = 'live';
   let groupQuery = '';
   let countryQuery = '';
@@ -74,10 +75,10 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
         <button class="focusable" data-scope="live">Live TV only</button>
       </div>
 
-      <div class="set-subhead">Countries <small>No selection shows every country</small></div>
+      <div class="set-subhead">Countries <small>Pick the countries you want to see. Nothing selected shows everything.</small></div>
       ${facets.countries.length > 14 ? `<input class="field focusable set-search" id="countrySearch" type="search" placeholder="Find a country">` : ''}
       <div class="country-grid" id="countries"></div>
-      ${toggle('keepUnknown', 'Keep channels without a detected country', 'Countries are detected from prefixes such as “UK:”, “NL |”, “[DE]”, tvg-country and tvg-id.', filter.keepUnknown)}
+      <p class="set-note">Countries are recognised from names like “UK: BBC One”, groups like “NL | Sport” or “Netherlands”, and the playlist’s tvg-country / tvg-id.</p>
 
       <div class="set-subhead">Hide by keyword</div>
       ${field('excludeWords', 'Words to hide', (filter.excludeWords || []).join(', '), { placeholder: 'adult, xxx, 24/7, ppv', hint: 'Comma separated, matched against channel and group names.' })}
@@ -147,6 +148,8 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
     countriesEl.innerHTML =
       facets.countries
         .filter((c) => c.code && (!q || c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q))
+        // Selected countries first; clicking doesn't re-sort, so tiles don't jump around
+        .sort((a, b) => sel.has(b.code) - sel.has(a.code))
         .map((c) => {
           const n = c.live + c.movie + c.series;
           return `<button class="country focusable${sel.has(c.code) ? ' on' : ''}" data-code="${esc(c.code)}">
@@ -179,7 +182,7 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
         g.type === groupType &&
         (!q || g.name.toLowerCase().includes(q)) &&
         // With a country selection, only show groups that can still appear
-        (!sel.size || (g.country ? sel.has(g.country) : filter.keepUnknown)),
+        (!sel.size || sel.has(g.country)),
     );
   };
   const renderGroups = () => {
@@ -241,11 +244,7 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
       preview();
     }),
   );
-  $('#keepUnknown', v).addEventListener('change', (e) => {
-    filter.keepUnknown = e.target.checked;
-    renderGroups();
-    preview();
-  });
+
   $('#excludeWords', v).addEventListener('input', (e) => {
     filter.excludeWords = toList(e.target.value);
     preview();

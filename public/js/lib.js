@@ -80,6 +80,15 @@ function write(key, value) {
   } catch {}
 }
 
+const putFavorites = () =>
+  fetch('api/favorites', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify([...store.favorites]),
+  }).catch(() => {});
+const pushFavorites = debounce(putFavorites, 400);
+pushFavorites.now = putFavorites;
+
 export const store = {
   favorites: new Set(read('favorites', [])),
   recents: read('recents', []), // [{ id, type, name, logo, sub, t }]
@@ -90,7 +99,20 @@ export const store = {
   toggleFav(id) {
     store.favorites.has(id) ? store.favorites.delete(id) : store.favorites.add(id);
     write('favorites', [...store.favorites]);
+    pushFavorites();
+    store.onFavChange?.(id);
     return store.favorites.has(id);
+  },
+  // Favorites live on the server so every device sees the same list; the local copy is a fallback
+  async syncFavorites() {
+    try {
+      const remote = await api('api/favorites');
+      if (!remote.length && store.favorites.size) await pushFavorites.now();
+      else {
+        store.favorites = new Set(remote);
+        write('favorites', remote);
+      }
+    } catch {}
   },
   addRecent(entry) {
     store.recents = [{ ...entry, t: Date.now() }, ...store.recents.filter((r) => r.id !== entry.id)].slice(0, 40);

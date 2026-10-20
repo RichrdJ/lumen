@@ -141,6 +141,16 @@ function serveStatic(req, res, pathname) {
 
 // ---------- api ----------
 
+const favoritesFile = path.join(config.dataDir, 'favorites.json');
+function readFavorites() {
+  try {
+    const ids = JSON.parse(fs.readFileSync(favoritesFile, 'utf8'));
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
+}
+
 async function readJson(req) {
   let size = 0;
   const chunks = [];
@@ -262,6 +272,16 @@ async function api(req, res, url) {
     return transcode(req, res, i, q);
   }
   if (p === '/img') return image(req, res, q.get('u'));
+
+  // Favorites are shared by every device that uses this server
+  if (p === '/favorites' && req.method === 'GET') return sendJson(req, res, readFavorites());
+  if (p === '/favorites' && req.method === 'PUT') {
+    const ids = await readJson(req);
+    if (!Array.isArray(ids)) return sendJson(req, res, { error: 'Expected an array' }, 400);
+    const clean = [...new Set(ids.map(String))].slice(0, 5000);
+    fs.writeFileSync(favoritesFile, JSON.stringify(clean));
+    return sendJson(req, res, clean);
+  }
 
   if (p === '/settings' && req.method === 'GET') return sendJson(req, res, publicSettings());
 

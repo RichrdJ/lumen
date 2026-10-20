@@ -40,6 +40,7 @@ export class Player {
         <div class="p-top">
           <button class="p-btn focusable" data-act="close" aria-label="Back">${icon.back}</button>
           <div class="p-titles"><div class="p-kicker"></div><div class="p-title"></div></div>
+          <button class="p-btn p-fav focusable" data-act="fav" aria-label="Favorite">${icon.heartLine}</button>
           <div class="p-clock"></div>
         </div>
         <div class="p-bottom">
@@ -511,6 +512,21 @@ export class Player {
 
   // ---------- rendering ----------
 
+  // Episodes are favorited as their series
+  favId() {
+    const i = this.item;
+    return i ? (i.type === 'episode' ? i.seriesId : i.id) : null;
+  }
+
+  syncFav() {
+    const b = $('.p-fav', this.root);
+    const id = this.favId();
+    b.hidden = !id;
+    const on = !!id && store.isFav(id);
+    b.classList.toggle('on', on);
+    b.innerHTML = on ? icon.heart : icon.heartLine;
+  }
+
   art(i) {
     const pic = i.logo ? `<img src="${esc(this.img(i.logo))}" alt="" loading="lazy">` : '';
     return `<span class="art art-logo" style="--h:${hue(i.name)}">${pic}<span class="initials">${esc(initials(i.name))}</span></span>`;
@@ -518,6 +534,7 @@ export class Player {
 
   renderMeta() {
     const i = this.item;
+    this.syncFav();
     this.ui.clock.textContent = clock(Date.now());
     const art = this.art(i);
     this.ui.loadingArt.innerHTML = art;
@@ -638,6 +655,13 @@ export class Player {
       case 'close':
         this.close();
         break;
+      case 'fav': {
+        const id = this.favId();
+        if (!id) break;
+        const on = store.toggleFav(id);
+        toast(on ? 'Added to Favorites' : 'Removed from Favorites');
+        break;
+      }
     }
   }
 

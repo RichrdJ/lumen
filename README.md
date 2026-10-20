@@ -10,7 +10,8 @@ A smooth, Apple TV–style web player for your IPTV playlist. Point it at an M3U
 - **Remote-friendly** – full arrow-key / D-pad navigation, channel up/down zapping with an on-screen display, media keys, swipe-to-zap on phones.
 - **Movies & series** – posters, details, seasons/episodes, "continue watching" with resume, auto-play next episode.
 - **Settings in the app** – sources, country/group filter, playback and login, no compose editing needed.
-- **Per-device favorites & history**, multi-arch Docker image (amd64 / arm64), compose and Swarm stack files.
+- **Favorites-first Home** – heart any channel, movie or series; favorites are stored on the server and shared by all your devices.
+- **Per-device history**, multi-arch Docker image (amd64 / arm64), compose and Swarm stack files.
 
 ## Quick start
 
@@ -50,7 +51,7 @@ Then open `http://<host>:4242` and go to **Settings** (gear icon) to add your pl
 Everything is configured in the app and stored in `/data/settings.json`:
 
 - **Sources** – M3U URLs, Xtream Codes account, XMLTV guide URLs, refresh interval, user agent. Files dropped into `/data` (`*.m3u`, `*.xml`, `*.xml.gz`) are picked up automatically.
-- **Filter** – show only selected countries (e.g. just UK and NL), hide groups, hide by keyword, and choose whether the filter applies to everything or only live TV. A live preview shows how many channels remain. Countries are detected from `tvg-country`, `tvg-id` suffixes (`BBCOne.uk`) and prefixes like `UK:`, `NL |`, `[DE]`, `FR -`.
+- **Filter** – pick countries (e.g. just UK and NL) and only those are shown, hide groups, hide by keyword, and choose whether the filter applies to everything or only live TV. A live preview shows how many channels remain. Countries are detected from `tvg-country`, `tvg-id` suffixes (`BBCOne.uk`) and prefixes like `UK:`, `NL |`, `[DE]`, `FR -`.
 - **Playback** – stream proxy, artwork cache, ffmpeg video re-encoding.
 - **Login** – optional username and password (stored hashed).
 
@@ -81,7 +82,7 @@ Environment variables still work as defaults for anything not yet saved in Setti
 | `m` / `c` / `p` | | Mute / channel list / picture-in-picture |
 | PageUp / PageDown | | Previous / next channel |
 
-Right-click (or long-press) a card to toggle it as a favorite.
+Tap the heart on a card (or right-click / long-press it, or press `f`) to toggle a favorite. Home shows only your favorites.
 
 ## Development
 

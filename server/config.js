@@ -32,7 +32,6 @@ const defaults = {
   authHash: '',
   filter: {
     countries: list(env.FILTER_COUNTRIES).map((c) => c.toUpperCase()),
-    keepUnknown: bool(env.FILTER_KEEP_UNKNOWN, true),
     hiddenGroups: [],
     excludeWords: list(env.FILTER_EXCLUDE),
     scope: 'all', // all | live
@@ -145,7 +144,6 @@ export function saveSettings(patch) {
     const f = patch.filter;
     next.filter = {
       countries: list(f.countries).map((c) => c.toUpperCase()),
-      keepUnknown: !!f.keepUnknown,
       hiddenGroups: Array.isArray(f.hiddenGroups) ? f.hiddenGroups.map(String) : [],
       excludeWords: list(f.excludeWords),
       scope: f.scope === 'live' ? 'live' : 'all',

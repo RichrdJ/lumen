@@ -97,9 +97,7 @@ export function makeFilter(f) {
       const text = `${item.name} ${item.group}`.toLowerCase();
       if (words.some((w) => text.includes(w))) return false;
     }
-    if (countries.size) {
-      if (item.country ? !countries.has(item.country) : !f.keepUnknown) return false;
-    }
+    if (countries.size && !countries.has(item.country)) return false;
     return true;
   };
 }

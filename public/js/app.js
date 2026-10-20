@@ -62,14 +62,25 @@ function liveProgress(id) {
   return { cur, pct: Math.max(0, Math.min(100, ((Date.now() - cur[0]) / (cur[1] - cur[0])) * 100)) };
 }
 
-function favBadge(id) {
-  return store.isFav(id) ? `<span class="fav-badge">${icon.heart}</span>` : '';
+// Heart toggle that lives on every card (visible on hover/focus, always visible once favorited)
+function favButton(id) {
+  const on = store.isFav(id);
+  return `<span class="card-fav${on ? ' on' : ''}" data-fav="${esc(id)}" role="button" aria-label="${on ? 'Remove from' : 'Add to'} favorites">${on ? icon.heart : icon.heartLine}</span>`;
+}
+
+function updateFavButtons(id) {
+  const on = store.isFav(id);
+  for (const b of $$(`[data-fav="${CSS.escape(id)}"]`)) {
+    b.classList.toggle('on', on);
+    b.innerHTML = on ? icon.heart : icon.heartLine;
+    b.setAttribute('aria-label', `${on ? 'Remove from' : 'Add to'} favorites`);
+  }
 }
 
 function channelCard(c) {
   const { cur, pct } = liveProgress(c.id);
   return `<button class="card card-ch focusable" data-play="${esc(c.id)}" title="${esc(c.name)}">
-    <span class="card-frame">${art(c, 'art-logo')}${favBadge(c.id)}
+    <span class="card-frame">${art(c, 'art-logo')}${favButton(c.id)}
       ${cur ? `<span class="card-progress"><i style="width:${pct}%"></i></span>` : ''}</span>
     <span class="card-meta"><span class="card-title">${c.num ? `<em>${c.num}</em>` : ''}${esc(c.name)}</span>
     <span class="card-sub">${cur ? esc(cur[2]) : '&nbsp;'}</span></span></button>`;
@@ -81,7 +92,7 @@ function posterCard(m) {
     .filter(Boolean)
     .join(' · ');
   return `<button class="card card-poster focusable" data-open="${esc(m.id)}" title="${esc(m.name)}">
-    <span class="card-frame">${art(m, 'art-cover')}${favBadge(m.id)}
+    <span class="card-frame">${art(m, 'art-cover')}${favButton(m.id)}
       ${p ? `<span class="card-progress"><i style="width:${(p.pos / p.dur) * 100}%"></i></span>` : ''}</span>
     <span class="card-meta"><span class="card-title">${esc(m.name)}</span><span class="card-sub">${esc(sub) || '&nbsp;'}</span></span></button>`;
 }
@@ -137,60 +148,48 @@ async function viewHome(v, _args, token) {
   const live = s.counts.live ? await section('live') : null;
   if (token !== state.routeToken) return;
 
-  v.innerHTML = `<div class="hero" id="hero"></div>
-    <div class="rows"><div id="row-continue"></div><div id="rows-live"></div><div id="rows-vod"></div></div>`;
-
-  // Rows are rendered once; later updates touch only what changed so scroll positions and focus survive
-  const renderContinue = () => {
-    $('#row-continue', v).innerHTML = row('Continue Watching', store.recents.slice(0, 20).map(recentCard));
-  };
-  const renderLive = () => {
-    if (!live) return;
-    const parts = [];
-    const favs = live.items.filter((c) => store.isFav(c.id));
-    parts.push(row('Favorite Channels', favs.slice(0, 40).map(channelCard), '#/live/__fav'));
-    const onNow = live.items.filter((c) => epgFor(c.id)?.[0]).slice(0, 30);
-    parts.push(row('On Now', onNow.map(channelCard), '#/guide'));
-    let n = 0;
-    for (const [group, list] of live.byGroup) {
-      if (n++ >= 12) break;
-      parts.push(row(group, list.slice(0, 30).map(channelCard), `#/live/${encodeURIComponent(group)}`));
+  // Home is the user's own space: only what they marked as favorite
+  const render = () => {
+    const favLive = live ? live.items.filter((c) => store.isFav(c.id)) : [];
+    const favVod = ['movie', 'series'].map((t) => (state.loaded[t]?.items || []).filter((m) => store.isFav(m.id)));
+    const anything = favLive.length || favVod[0].length || favVod[1].length;
+    if (!anything) {
+      clearInterval(heroTimer);
+      const vodPending = ['movie', 'series'].some((t) => s.counts[t] && !state.loaded[t]);
+      v.innerHTML = vodPending
+        ? '<div class="view-loading"><div class="spinner"></div></div>'
+        : `<div class="empty"><div class="empty-heart">${icon.heart}</div><h1>Your favorites live here</h1>
+          <p>Tap the heart on any channel, movie or series to pin it to Home. With a keyboard or remote, press <code>f</code> on a focused tile.</p>
+          <div class="empty-actions">
+            ${s.counts.live ? '<a class="btn btn-primary focusable" href="#/live">Browse Live TV</a>' : ''}
+            ${s.counts.movie ? '<a class="btn btn-glass focusable" href="#/movies">Movies</a>' : ''}
+            ${s.counts.series ? '<a class="btn btn-glass focusable" href="#/series">Series</a>' : ''}
+          </div></div>`;
+      return;
     }
-    $('#rows-live', v).innerHTML = parts.join('');
+    v.innerHTML = `<div class="hero" id="hero"></div>
+      <div class="rows">
+        ${
+          favLive.length
+            ? `<section class="home-section"><header class="row-head"><h2>Favorite Channels</h2>
+                <a class="row-more focusable" href="#/guide/__fav">Guide ${icon.chevronR}</a></header>
+                <div class="fav-grid">${favLive.map(channelCard).join('')}</div></section>`
+            : ''
+        }
+        ${row('Favorite Movies', favVod[0].map(posterCard))}
+        ${row('Favorite Series', favVod[1].map(posterCard))}
+      </div>`;
+    hero($('#hero', v), favLive);
   };
-  const renderVod = () => {
-    const parts = [];
-    for (const type of ['movie', 'series']) {
-      const data = state.loaded[type];
-      if (!data) continue;
-      const recent = [...data.items].sort((a, b) => (b.added || 0) - (a.added || 0)).slice(0, 30);
-      parts.push(row(`New ${TYPE_LABEL[type]}`, recent.map(posterCard), type === 'movie' ? '#/movies' : '#/series'));
-      const favs = data.items.filter((m) => store.isFav(m.id));
-      parts.push(row(`Favorite ${TYPE_LABEL[type]}`, favs.slice(0, 30).map(posterCard)));
-    }
-    $('#rows-vod', v).innerHTML = parts.join('');
-  };
-  renderContinue();
-  renderLive();
-  renderVod();
-  hero($('#hero', v), live);
-  let hadEpg = Object.keys(state.epgNow).length > 0;
-  state.onEpg = () => {
-    // The first guide data adds an "On Now" row; after that only progress and titles change
-    const has = Object.keys(state.epgNow).length > 0;
-    if (has && !hadEpg) renderLive();
-    else updateLiveCards(v);
-    hadEpg = has;
-  };
-  state.onReturn = () => {
-    renderContinue();
-    updateLiveCards(v);
-  };
+  render();
+  state.onEpg = () => updateLiveCards(v);
+  state.onReturn = render;
+  state.onFavsChanged = render;
 
   // VOD sections load after the first paint so home stays instant
   for (const type of ['movie', 'series']) {
     if (!s.counts[type] || state.loaded[type]) continue;
-    section(type).then(() => token === state.routeToken && renderVod());
+    section(type).then(() => token === state.routeToken && render());
   }
 }
 
@@ -211,19 +210,16 @@ function updateLiveCards(root) {
     else bar?.remove();
   }
 }
-function hero(host, live) {
-  if (!live) {
+let heroTimer = 0;
+function hero(host, favs) {
+  clearInterval(heroTimer);
+  if (!favs.length) {
     host.innerHTML = '';
     host.classList.add('hero-empty');
     return;
   }
-  const pick = [];
-  const add = (c) => c && !pick.includes(c) && pick.push(c);
-  store.recents.filter((r) => r.type === 'live').forEach((r) => add(state.byId.get(r.id)));
-  live.items.filter((c) => store.isFav(c.id)).forEach(add);
-  live.items.filter((c) => epgFor(c.id)?.[0] && c.logo).slice(0, 8).forEach(add);
-  if (!pick.length) live.items.slice(0, 5).forEach(add);
-  const slides = pick.slice(0, 6);
+  // Favorites that are on air with guide info first
+  const slides = [...favs].sort((a, b) => !!epgFor(b.id)?.[0] - !!epgFor(a.id)?.[0]).slice(0, 6);
   let idx = 0;
 
   const show = () => {
@@ -234,9 +230,9 @@ function hero(host, live) {
       <div class="hero-bg" style="--h:${hue(c.name)}">${c.logo ? `<img src="${esc(img(c.logo))}" alt="">` : ''}</div>
       <div class="hero-shade"></div>
       <div class="hero-content">
-        <div class="hero-kicker"><span class="live-pill">LIVE</span><span>${esc(c.name)}</span></div>
+        <div class="hero-kicker"><span class="live-pill">LIVE</span><span>${esc(cur ? c.name : c.group)}</span></div>
         <h1 class="hero-title">${esc(cur ? cur[2] : c.name)}</h1>
-        <p class="hero-sub">${cur ? `${clock(cur[0])} – ${clock(cur[1])}` : esc(c.group)}${next ? ` · Up next: ${esc(next[2])}` : ''}</p>
+        ${cur || next ? `<p class="hero-sub">${cur ? `${clock(cur[0])} – ${clock(cur[1])}` : ''}${cur && next ? ' · ' : ''}${next ? `Up next: ${esc(next[2])}` : ''}</p>` : '<p class="hero-sub">&nbsp;</p>'}
         ${cur ? `<div class="hero-progress"><i style="width:${pct}%"></i></div>` : ''}
         <div class="hero-actions">
           <button class="btn btn-primary focusable" data-play="${esc(c.id)}">${icon.play}<span>Watch Live</span></button>
@@ -249,7 +245,7 @@ function hero(host, live) {
   };
   show();
   if (slides.length < 2) return;
-  const timer = setInterval(() => {
+  heroTimer = setInterval(() => {
     if (host.contains(document.activeElement) || !host.isConnected || document.hidden) return;
     host.classList.remove('in');
     setTimeout(() => {
@@ -257,7 +253,7 @@ function hero(host, live) {
       show();
     }, 450);
   }, 9000);
-  state.cleanup.push(() => clearInterval(timer));
+  state.cleanup.push(() => clearInterval(heroTimer));
 }
 
 // ---------- live tv ----------
@@ -326,6 +322,10 @@ async function viewLive(v, [groupArg], token) {
     }, 120),
   );
   state.onEpg = () => updateLiveCards(v);
+  state.onFavsChanged = () => {
+    $('[data-group="__fav"] small', v).textContent = live.items.filter((c) => store.isFav(c.id)).length;
+    if (group === '__fav') apply();
+  };
 }
 
 // ---------- guide ----------
@@ -761,6 +761,7 @@ async function route() {
   state.cleanup = [];
   state.onEpg = null;
   state.onReturn = null;
+  state.onFavsChanged = null;
   const token = ++state.routeToken;
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === r));
   const v = $('#view');
@@ -784,10 +785,8 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-play],[data-open],[data-fav],[data-scroll]');
   if (!t || t.closest('#player')) return;
   if (t.dataset.fav) {
-    const on = store.toggleFav(t.dataset.fav);
-    t.classList.toggle('on', on);
-    t.innerHTML = on ? icon.heart : icon.heartLine;
-    toast(on ? 'Added to Favorites' : 'Removed from Favorites');
+    e.preventDefault();
+    toggleFavorite(t.dataset.fav);
   } else if (t.dataset.scroll) {
     const s = t.parentElement.querySelector('.row-scroll');
     s.scrollBy({ left: Number(t.dataset.scroll) * s.clientWidth * 0.85, behavior: 'smooth' });
@@ -806,13 +805,20 @@ document.addEventListener('contextmenu', (e) => {
   const c = e.target.closest('.card[data-play], .card[data-open]');
   if (!c) return;
   e.preventDefault();
-  const id = c.dataset.play || c.dataset.open;
+  toggleFavorite(c.dataset.play || c.dataset.open);
+});
+
+function toggleFavorite(id) {
   const on = store.toggleFav(id);
   toast(on ? 'Added to Favorites' : 'Removed from Favorites');
-  const frame = c.querySelector('.card-frame');
-  frame.querySelector('.fav-badge')?.remove();
-  if (on) frame.insertAdjacentHTML('beforeend', `<span class="fav-badge">${icon.heart}</span>`);
-});
+}
+
+// Any heart, wherever it was clicked (card, hero, detail sheet, player), keeps every other heart in sync
+store.onFavChange = (id) => {
+  updateFavButtons(id);
+  player.syncFav();
+  if (!player.isOpen()) state.onFavsChanged?.();
+};
 
 document.addEventListener('keydown', (e) => {
   if (player.isOpen()) {
@@ -833,8 +839,9 @@ document.addEventListener('keydown', (e) => {
     return openSearch();
   }
   if (!inField && e.key === 'f') {
-    const c = document.activeElement?.closest?.('.card');
-    if (c) c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    const c = document.activeElement?.closest?.('.card, .g-ch');
+    const id = c?.dataset.play || c?.dataset.open;
+    if (id) toggleFavorite(id);
     return;
   }
   if (e.key.startsWith('Arrow')) {
@@ -892,6 +899,7 @@ async function reloadData({ wait = false } = {}) {
 
 async function preload() {
   state.loaded ||= {};
+  await store.syncFavorites();
   const counts = state.status.counts;
   if (counts.live) state.loaded.live = await section('live');
   await refreshEpg();
