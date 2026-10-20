@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { config } from './config.js';
+import { config, m3uFiles, epgFiles } from './config.js';
+import { applyFilter, countryOf } from './filter.js';
 import { parseM3U, buildSeries } from './m3u.js';
 import { loadXtream, xtreamEpgUrl } from './xtream.js';
 import { fetchText, redact } from './util.js';
@@ -19,11 +20,13 @@ export const catalog = {
   loading: false,
   error: null,
   payloads: new Map(),
+  raw: null, // unfiltered snapshot; the filter can be re-applied without refetching
+  version: 0,
 };
 
 const cacheFile = () => path.join(config.dataDir, 'catalog.json');
 
-export const hasSources = () => !!(config.m3uUrls.length || config.m3uFiles.length || config.xtream);
+export const hasSources = () => !!(config.m3uUrls.length || m3uFiles().length || config.xtream);
 
 function addHost(url) {
   try {
@@ -37,7 +40,9 @@ export function registerItem(item) {
   if (item.logo) catalog.logos.add(item.logo);
 }
 
-function apply(data) {
+function apply(raw) {
+  catalog.raw = raw;
+  const data = applyFilter(raw, config.settings.filter);
   catalog.items = new Map();
   catalog.hosts = new Set();
   catalog.logos = new Set();
@@ -62,7 +67,12 @@ function apply(data) {
   if (config.xtream) addHost(config.xtream.url);
   catalog.epgSources = data.epgSources;
   catalog.updatedAt = data.updatedAt;
+  catalog.version++;
   catalog.payloads = new Map();
+}
+
+export function reapplyFilter() {
+  if (catalog.raw) apply(catalog.raw);
 }
 
 async function fetchAll() {
@@ -80,7 +90,7 @@ async function fetchAll() {
         (e) => (errors.push(`${redact(u)}: ${e.message}`), null),
       ),
     ),
-    ...config.m3uFiles.map((f, i) =>
+    ...m3uFiles().map((f, i) =>
       fs.readFile(f, 'utf8').then(
         (t) => [`file${i}`, t],
         (e) => (errors.push(`${f}: ${e.message}`), null),
@@ -110,7 +120,9 @@ async function fetchAll() {
     }
   }
 
-  let epgSources = [...config.epgUrls, ...config.epgFiles];
+  for (const i of [...live, ...movies, ...series]) i.country = countryOf(i);
+
+  let epgSources = [...config.epgUrls, ...epgFiles()];
   if (!epgSources.length) {
     epgSources = [...new Set(playlistEpg)];
     if (config.xtream) epgSources.push(xtreamEpgUrl(config.xtream));
@@ -122,6 +134,8 @@ async function fetchAll() {
 export async function loadCached() {
   try {
     const data = JSON.parse(await fs.readFile(cacheFile(), 'utf8'));
+    // Recomputed on load so detection improvements apply to cached playlists too
+    for (const i of [...data.live, ...data.movies, ...data.series]) i.country = countryOf(i);
     apply(data);
     console.log(`[catalog] restored ${catalog.live.length} live, ${catalog.movies.length} movies, ${catalog.series.length} series from cache`);
     return true;
@@ -139,7 +153,7 @@ export async function refreshCatalog() {
     const total = data.live.length + data.movies.length + data.series.length;
     catalog.error = data.errors.length ? data.errors.join('; ') : null;
     // Keep the previous catalog if every source failed
-    if (total || !catalog.items.size) {
+    if (total || !catalog.items.size || !data.errors.length) {
       apply(data);
       await fs.writeFile(cacheFile(), JSON.stringify({ ...data, errors: undefined })).catch(() => {});
     }
@@ -168,7 +182,7 @@ const strip = (o) => {
 
 // Compact, client-safe (no stream URLs) payload per section, cached as gzip
 export function payload(type) {
-  const key = type + catalog.updatedAt;
+  const key = type + catalog.version;
   let p = catalog.payloads.get(key);
   if (p) return p;
   let items;
@@ -197,7 +211,7 @@ export function payload(type) {
     );
   }
   const raw = Buffer.from(JSON.stringify({ updatedAt: catalog.updatedAt, groups: groupsOf(list), items }));
-  p = { raw, gz: zlib.gzipSync(raw, { level: 6 }), etag: `"${type}-${catalog.updatedAt}"` };
+  p = { raw, gz: zlib.gzipSync(raw, { level: 6 }), etag: `"${type}-${catalog.updatedAt}-${catalog.version}"` };
   catalog.payloads.set(key, p);
   return p;
 }

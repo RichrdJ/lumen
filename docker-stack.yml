@@ -1,0 +1,38 @@
+# Docker Swarm / Portainer stack.
+#   docker stack deploy -c docker-stack.yml --with-registry-auth lumen
+# All settings (playlists, guide, filter, login) live in the app under Settings
+# and are stored in the "lumen-data" volume.
+version: "3.8"
+
+services:
+  lumen:
+    image: ghcr.io/richrdj/lumen:latest
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host # keeps streaming traffic off the routing mesh
+    volumes:
+      - lumen-data:/data
+    environment:
+      TZ: "Europe/Amsterdam"
+    stop_grace_period: 10s
+    deploy:
+      replicas: 1 # settings and caches are local to the volume; don't scale out
+      update_config:
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 5s
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  lumen-data:

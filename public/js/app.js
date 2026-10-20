@@ -1,5 +1,6 @@
 import { $, $$, api, clock, debounce, el, esc, hue, icon, initials, minutes, spatialMove, store, toast, VirtualGrid } from './lib.js';
 import { Player } from './player.js';
+import { viewSettings } from './settings.js';
 
 const state = {
   status: null,
@@ -109,8 +110,8 @@ function row(title, cards, more) {
     </div></section>`;
 }
 
-function emptyState(title, body) {
-  return `<div class="empty"><div class="empty-mark"></div><h1>${title}</h1><p>${body}</p></div>`;
+function emptyState(title, body, action = '') {
+  return `<div class="empty"><div class="empty-mark"></div><h1>${title}</h1><p>${body}</p>${action}</div>`;
 }
 
 // ---------- home ----------
@@ -120,7 +121,16 @@ async function viewHome(v, _args, token) {
   if (!s.configured) {
     v.innerHTML = emptyState(
       'Welcome to Lumen',
-      'Add a playlist to get started: set <code>M3U_URL</code>, <code>XTREAM_URL</code> or drop an <code>.m3u</code> file into the <code>/data</code> folder, then restart the container.',
+      'Add your M3U playlist or Xtream account to get started.',
+      '<a class="btn btn-primary focusable" href="#/settings">Open Settings</a>',
+    );
+    return;
+  }
+  if (s.ready && !s.counts.live && !s.counts.movie && !s.counts.series) {
+    v.innerHTML = emptyState(
+      'Nothing to show',
+      s.error ? `Your sources couldn't be loaded: ${esc(s.error)}` : 'Your filter hides everything, or the playlist is empty.',
+      '<a class="btn btn-primary focusable" href="#/settings">Open Settings</a>',
     );
     return;
   }
@@ -736,6 +746,12 @@ const routes = {
   guide: viewGuide,
   movies: (v, a, t) => viewVod(v, 'movie', a, t),
   series: (v, a, t) => viewVod(v, 'series', a, t),
+  settings: (v, a, token) =>
+    viewSettings(v, {
+      token,
+      isCurrent: (t) => t === state.routeToken,
+      onSaved: (r) => reloadData({ wait: !!r.reloading }),
+    }),
 };
 
 async function route() {
@@ -847,23 +863,31 @@ $('#searchBtn').addEventListener('click', openSearch);
 $('#refreshBtn').addEventListener('click', async () => {
   await api('api/refresh', { method: 'POST' }).catch(() => {});
   toast('Refreshing playlist and guide…');
-  const before = state.status.updatedAt;
-  const poll = setInterval(async () => {
-    const s = await api('api/status').catch(() => null);
-    if (s && !s.loading && s.updatedAt !== before) {
-      clearInterval(poll);
-      state.status = s;
-      state.sections = {};
-      state.loaded = {};
-      state.byId.clear();
-      await preload();
-      toast('Playlist updated');
-      route();
-    }
-  }, 3000);
-  setTimeout(() => clearInterval(poll), 10 * 60e3);
+  await reloadData({ wait: true });
+  toast('Playlist updated');
 });
 
+// Drop cached sections and re-render; optionally wait for a server-side reload first
+async function reloadData({ wait = false } = {}) {
+  if (wait) {
+    const until = Date.now() + 10 * 60e3;
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1500));
+      const s = await api('api/status').catch(() => null);
+      if ((s && !s.loading) || Date.now() > until) break;
+    }
+  }
+  state.status = await api('api/status');
+  state.sections = {};
+  state.loaded = {};
+  state.byId.clear();
+  state.zapContext = null;
+  try {
+    await preload();
+  } catch {}
+  applyTabs();
+  route();
+}
 // ---------- boot ----------
 
 async function preload() {

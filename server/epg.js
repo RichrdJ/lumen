@@ -128,7 +128,15 @@ function parseInto(stream, channels, names, from, to) {
 }
 
 export async function loadEpg(sources) {
-  if (!sources.length || epg.loading) return;
+  if (epg.loading) return;
+  if (!sources.length) {
+    epg.channels = new Map();
+    epg.names = new Map();
+    epg.ids = new Map();
+    epg.resolved = new Map();
+    epg.updatedAt = 0;
+    return;
+  }
   epg.loading = true;
   epg.error = null;
   const started = Date.now();

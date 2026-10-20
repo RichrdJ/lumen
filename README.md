@@ -9,12 +9,14 @@ A smooth, Apple TV–style web player for your IPTV playlist. Point it at an M3U
 - **TV guide** – XMLTV (`.xml` / `.xml.gz`) with a timeline grid, now/next on every card and programme progress in the player.
 - **Remote-friendly** – full arrow-key / D-pad navigation, channel up/down zapping with an on-screen display, media keys, swipe-to-zap on phones.
 - **Movies & series** – posters, details, seasons/episodes, "continue watching" with resume, auto-play next episode.
-- **Per-device favorites & history**, optional basic auth, multi-arch Docker image (amd64 / arm64).
+- **Settings in the app** – sources, country/group filter, playback and login, no compose editing needed.
+- **Per-device favorites & history**, multi-arch Docker image (amd64 / arm64), compose and Swarm stack files.
 
 ## Quick start
 
+### Docker Compose
+
 ```yaml
-# docker-compose.yml
 services:
   lumen:
     image: ghcr.io/richrdj/lumen:latest
@@ -24,8 +26,6 @@ services:
     volumes:
       - ./data:/data
     environment:
-      M3U_URL: "http://provider.example/get.php?username=USER&password=PASS&type=m3u_plus"
-      # EPG_URL: "https://example.com/guide.xml.gz"
       TZ: "Europe/Amsterdam"
 ```
 
@@ -33,31 +33,41 @@ services:
 docker compose up -d
 ```
 
-Open `http://<host>:8080`.
+### Docker Swarm / Portainer stack
 
-Prefer a local file? Put `playlist.m3u` (and optionally `guide.xml` / `guide.xml.gz`) in `./data` and leave the URLs out — Lumen picks them up automatically.
+```bash
+docker stack deploy -c docker-stack.yml --with-registry-auth lumen
+```
 
-> The image is private while the repository is private: run `docker login ghcr.io` with a GitHub token that has `read:packages` first.
+In Portainer: *Stacks → Add stack*, paste [`docker-stack.yml`](docker-stack.yml) and deploy.
 
-## Configuration
+Then open `http://<host>:8080` and go to **Settings** (gear icon) to add your playlist.
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `M3U_URL` | – | One or more playlist URLs (comma separated). |
-| `M3U_FILE` | `*.m3u` / `*.m3u8` in `/data` | One or more playlist files. |
-| `XTREAM_URL` | – | Xtream Codes server, e.g. `http://host:8080`. Loads live, movies and series. |
-| `XTREAM_USER` / `XTREAM_PASS` | – | Xtream credentials. |
-| `XTREAM_LIVE_FORMAT` | `ts` | `ts` or `m3u8` for Xtream live streams. |
-| `EPG_URL` | from playlist / Xtream | One or more XMLTV URLs (plain or gzipped). |
-| `EPG_FILE` | `*.xml` / `*.xml.gz` in `/data` | Local XMLTV files. |
-| `REFRESH_HOURS` | `12` | How often playlists and the guide are reloaded. |
-| `PROXY` | `always` | `always` streams through Lumen (fixes CORS/mixed content); `never` lets the browser connect directly. |
-| `PROXY_IMAGES` | `true` | Proxy and cache channel logos and posters. |
-| `USER_AGENT` | VLC | User agent sent to providers. Per-channel `#EXTVLCOPT:http-user-agent` overrides it. |
-| `TRANSCODE_VIDEO` | `false` | Let the ffmpeg fallback re-encode video to H.264 too (CPU heavy). |
-| `AUTH_USER` / `AUTH_PASS` | – | Enable HTTP basic auth. |
-| `PORT` | `8080` | Listen port. |
+> The image is private while the repository is private: run `docker login ghcr.io` with a GitHub token that has `read:packages` first (or add the registry in Portainer).
 
+## Settings
+
+Everything is configured in the app and stored in `/data/settings.json`:
+
+- **Sources** – M3U URLs, Xtream Codes account, XMLTV guide URLs, refresh interval, user agent. Files dropped into `/data` (`*.m3u`, `*.xml`, `*.xml.gz`) are picked up automatically.
+- **Filter** – show only selected countries (e.g. just UK and NL), hide groups, hide by keyword, and choose whether the filter applies to everything or only live TV. A live preview shows how many channels remain. Countries are detected from `tvg-country`, `tvg-id` suffixes (`BBCOne.uk`) and prefixes like `UK:`, `NL |`, `[DE]`, `FR -`.
+- **Playback** – stream proxy, artwork cache, ffmpeg video re-encoding.
+- **Login** – optional username and password (stored hashed).
+
+### Environment variables (optional)
+
+Environment variables still work as defaults for anything not yet saved in Settings — handy for automated deployments.
+
+| Variable | Description |
+| --- | --- |
+| `M3U_URL`, `M3U_FILE` | Playlist URLs / files (comma separated). |
+| `XTREAM_URL`, `XTREAM_USER`, `XTREAM_PASS`, `XTREAM_LIVE_FORMAT` | Xtream Codes account. |
+| `EPG_URL`, `EPG_FILE` | XMLTV guides. |
+| `FILTER_COUNTRIES` | e.g. `UK,NL`. |
+| `FILTER_EXCLUDE` | Keywords to hide, comma separated. |
+| `REFRESH_HOURS`, `PROXY`, `PROXY_IMAGES`, `USER_AGENT`, `TRANSCODE_VIDEO` | Same as in Settings. |
+| `AUTH_USER`, `AUTH_PASS` | Login. |
+| `PORT`, `DATA_DIR`, `TZ` | Container basics. |
 ## Keyboard & remote
 
 | Key | Browse | Player |
@@ -77,7 +87,7 @@ Right-click (or long-press) a card to toggle it as a favorite.
 
 ```bash
 npm install
-M3U_FILE=./my.m3u npm run dev
+npm run dev   # then open http://localhost:8080/#/settings
 ```
 
 No build step: the frontend is plain ES modules in `public/`, the server is dependency-light Node in `server/`.

@@ -2,10 +2,10 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { config } from './config.js';
-import { catalog, hasSources, loadCached, payload, refreshCatalog, registerItem } from './catalog.js';
+import { checkPassword, config, publicSettings, saveSettings } from './config.js';
+import { applyFilter, facets } from './filter.js';
+import { catalog, hasSources, loadCached, payload, reapplyFilter, refreshCatalog, registerItem } from './catalog.js';
 import { epg, loadEpg, nowNext, range } from './epg.js';
 import { activeStreams, image, play, proxy, transcode } from './stream.js';
 import { xtreamSeriesInfo, xtreamVodInfo } from './xtream.js';
@@ -141,6 +141,17 @@ function serveStatic(req, res, pathname) {
 
 // ---------- api ----------
 
+async function readJson(req) {
+  let size = 0;
+  const chunks = [];
+  for await (const c of req) {
+    size += c.length;
+    if (size > 2e6) throw new Error('Body too large');
+    chunks.push(c);
+  }
+  return chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
+}
+
 function notFound(req, res) {
   sendJson(req, res, { error: 'Not found' }, 404);
 }
@@ -252,6 +263,43 @@ async function api(req, res, url) {
   }
   if (p === '/img') return image(req, res, q.get('u'));
 
+  if (p === '/settings' && req.method === 'GET') return sendJson(req, res, publicSettings());
+
+  if (p === '/settings' && req.method === 'PUT') {
+    const body = await readJson(req);
+    const authBefore = !!config.auth;
+    const { sourcesChanged, filterChanged } = saveSettings(body);
+    schedule();
+    if (sourcesChanged) refreshAll();
+    else if (filterChanged) {
+      reapplyFilter();
+      nowCache = { at: 0, data: null };
+    }
+    console.log(`[settings] saved${sourcesChanged ? ' (reloading sources)' : ''}${filterChanged ? ' (filter changed)' : ''}`);
+    return sendJson(req, res, { ok: true, reloading: sourcesChanged, authChanged: authBefore !== !!config.auth, settings: publicSettings() });
+  }
+
+  if (p === '/settings/facets') {
+    if (!catalog.raw) return sendJson(req, res, { countries: [], groups: [] });
+    return sendJson(req, res, facets(catalog.raw));
+  }
+
+  // Counts the filter would leave visible, without saving it
+  if (p === '/settings/preview' && req.method === 'POST') {
+    if (!catalog.raw) return sendJson(req, res, { live: 0, movie: 0, series: 0, total: { live: 0, movie: 0, series: 0 } });
+    const f = await readJson(req);
+    const r = catalog.raw;
+    const d = applyFilter(r, { ...config.settings.filter, ...f });
+    // The same stream can be listed in several groups; count it once, like the app shows it
+    const n = (list) => new Set(list.map((i) => i.id)).size;
+    return sendJson(req, res, {
+      live: n(d.live),
+      movie: n(d.movies),
+      series: n(d.series),
+      total: { live: n(r.live), movie: n(r.movies), series: n(r.series) },
+    });
+  }
+
   if (p === '/refresh' && req.method === 'POST') {
     refreshAll();
     return sendJson(req, res, { ok: true });
@@ -267,9 +315,7 @@ function authorized(req, res) {
   const [scheme, token] = (req.headers.authorization || '').split(' ');
   if (scheme === 'Basic' && token) {
     const [user, ...rest] = Buffer.from(token, 'base64').toString().split(':');
-    const a = Buffer.from(`${user}:${rest.join(':')}`);
-    const b = Buffer.from(`${config.auth.user}:${config.auth.pass}`);
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return true;
+    if (checkPassword(user, rest.join(':'))) return true;
   }
   res.writeHead(401, { 'www-authenticate': 'Basic realm="Lumen", charset="UTF-8"' });
   res.end('Authentication required');
@@ -297,16 +343,33 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-async function refreshAll() {
-  await refreshCatalog();
-  await loadEpg(catalog.epgSources);
-  nowCache = { at: 0, data: null };
+// Refresh loop: re-armed whenever the interval setting changes
+let refreshTimer = null;
+let refreshing = null;
+function schedule() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => hasSources() && refreshAll(), config.refreshHours * 3600e3);
+  refreshTimer.unref();
+}
+
+function refreshAll() {
+  refreshing ||= (async () => {
+    try {
+      await refreshCatalog();
+      await loadEpg(catalog.epgSources);
+      nowCache = { at: 0, data: null };
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
 }
 
 server.listen(config.port, async () => {
   console.log(`[lumen] v${version} listening on http://0.0.0.0:${config.port}`);
+  schedule();
   if (!hasSources()) {
-    console.warn('[lumen] No sources configured. Set M3U_URL, M3U_FILE or XTREAM_URL, or drop a .m3u into the data folder.');
+    console.warn('[lumen] No sources yet. Open the app and add a playlist under Settings.');
     return;
   }
   const cached = await loadCached();
@@ -314,7 +377,6 @@ server.listen(config.port, async () => {
     loadEpg(catalog.epgSources);
     refreshAll();
   } else await refreshAll();
-  setInterval(refreshAll, config.refreshHours * 3600e3).unref();
 });
 
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(0));

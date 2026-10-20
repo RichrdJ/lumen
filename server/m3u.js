@@ -71,6 +71,7 @@ export function parseM3U(text, source) {
       url,
       tvgId: a['tvg-id'] || '',
       tvgName: a['tvg-name'] || '',
+      tvgCountry: a['tvg-country'] || '',
       num: Number(a['tvg-chno'] || a['channel-number']) || 0,
       ua: opts['http-user-agent'] || a['user-agent'] || '',
       referrer: opts['http-referrer'] || opts['http-referer'] || '',

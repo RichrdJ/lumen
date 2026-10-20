@@ -1,3 +1,4 @@
+# Everything else (playlists, guide, filter, login) is configured in the app under Settings.
 services:
   lumen:
     image: ghcr.io/richrdj/lumen:latest
@@ -6,18 +7,6 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/data # drop playlist.m3u / guide.xml(.gz) here, or use the URLs below
+      - ./data:/data
     environment:
-      # --- pick one or more sources ---
-      # M3U_URL: "http://provider.example/get.php?username=USER&password=PASS&type=m3u_plus"
-      # M3U_FILE: "/data/playlist.m3u"
-      # XTREAM_URL: "http://provider.example:8080"
-      # XTREAM_USER: "user"
-      # XTREAM_PASS: "pass"
-      # --- tv guide (optional; auto-detected from the playlist / Xtream when empty) ---
-      # EPG_URL: "https://example.com/guide.xml.gz"
-      # --- optional ---
-      # REFRESH_HOURS: "12"
-      # AUTH_USER: "admin"
-      # AUTH_PASS: "change-me"
       TZ: "Europe/Amsterdam"
