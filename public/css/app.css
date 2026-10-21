@@ -2805,3 +2805,32 @@ button.row-more {
   flex-wrap: wrap;
   gap: 10px;
 }
+.page-head .account {
+  margin-left: auto;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  font-size: 13.5px;
+}
+.page-head .account b {
+  color: var(--muted);
+  font-weight: 600;
+}
+.link {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.link:hover,
+.link:focus-visible {
+  color: var(--text);
+  background: var(--surface);
+}

@@ -37,7 +37,7 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
 
   v.innerHTML = `
   <div class="settings">
-    <header class="page-head"><h1>Settings</h1><span class="count">Saved in /data/settings.json</span></header>
+    <header class="page-head"><h1>Settings</h1><span class="count">Saved in /data/settings.json</span><span class="account" id="account" hidden></span></header>
 
     <section class="set-card" id="sources">
       <h2>Sources</h2>
@@ -118,7 +118,6 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
       ${
         s.hasAuthPass
           ? `<div class="set-actions">
-              <button class="btn btn-glass focusable" id="signOut">Sign out</button>
               <button class="btn btn-glass focusable" id="removeAuth">Remove login</button>
             </div>`
           : ''
@@ -278,10 +277,19 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
 
   // ---- save ----
 
-  $('#signOut', v)?.addEventListener('click', async () => {
-    await fetch('api/logout', { method: 'POST' }).catch(() => {});
-    location.replace('login');
-  });
+  // Who is signed in, with a quiet sign-out link next to the page title
+  api('api/session')
+    .then((sess) => {
+      if (!sess.auth || !sess.user) return;
+      const el = $('#account', v);
+      el.innerHTML = `Signed in as <b>${esc(sess.user)}</b><span aria-hidden="true">·</span><button class="link focusable" id="signOut">Sign out</button>`;
+      el.hidden = false;
+      $('#signOut', v).addEventListener('click', async () => {
+        await fetch('api/logout', { method: 'POST' }).catch(() => {});
+        location.replace('login');
+      });
+    })
+    .catch(() => {});
 
   let removeAuth = false;
   $('#removeAuth', v)?.addEventListener('click', (e) => {
