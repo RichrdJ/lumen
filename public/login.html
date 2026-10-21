@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050507" />
+    <meta name="robots" content="noindex" />
+    <title>Sign in · Lumen</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <style>
+      :root {
+        --bg: #050507;
+        --text: #f5f5f7;
+        --muted: rgba(235, 235, 245, 0.62);
+        --dim: rgba(235, 235, 245, 0.38);
+        --stroke: rgba(255, 255, 255, 0.1);
+        --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.4 -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', Inter, Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+
+      /* Slowly drifting light behind the card */
+      .aurora {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        overflow: hidden;
+      }
+      .aurora i {
+        position: absolute;
+        width: 60vmax;
+        height: 60vmax;
+        border-radius: 50%;
+        filter: blur(90px);
+        opacity: 0.75;
+        animation: drift 24s ease-in-out infinite alternate;
+      }
+      .aurora i:nth-child(1) {
+        background: radial-gradient(circle, #ff6a88, transparent 65%);
+        top: -20vmax;
+        left: -15vmax;
+      }
+      .aurora i:nth-child(2) {
+        background: radial-gradient(circle, #7b5cff, transparent 65%);
+        bottom: -25vmax;
+        right: -15vmax;
+        animation-duration: 30s;
+        animation-delay: -8s;
+      }
+      .aurora i:nth-child(3) {
+        background: radial-gradient(circle, #3dd8ff, transparent 65%);
+        top: 30%;
+        left: 45%;
+        width: 40vmax;
+        height: 40vmax;
+        opacity: 0.3;
+        animation-duration: 36s;
+        animation-delay: -14s;
+      }
+      .aurora::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, rgba(5, 5, 7, 0.1), rgba(5, 5, 7, 0.7) 80%);
+      }
+      @keyframes drift {
+        to {
+          transform: translate(12vmax, 8vmax) scale(1.15);
+        }
+      }
+
+      main {
+        width: min(400px, 100%);
+        display: grid;
+        justify-items: center;
+        gap: 26px;
+        animation: rise 0.7s var(--ease) both;
+      }
+      main.leaving {
+        transition: opacity 0.35s, transform 0.45s var(--ease);
+        opacity: 0;
+        transform: scale(1.04);
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(16px) scale(0.98);
+        }
+      }
+      .brand {
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        text-align: center;
+      }
+      .mark {
+        width: 76px;
+        height: 76px;
+        border-radius: 22px;
+        box-shadow: 0 20px 60px rgba(255, 106, 136, 0.35);
+      }
+      h1 {
+        margin: 0;
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+      .brand p {
+        margin: -8px 0 0;
+        color: var(--muted);
+      }
+
+      form {
+        width: 100%;
+        display: grid;
+        gap: 14px;
+        padding: 26px;
+        border-radius: 26px;
+        background: rgba(22, 22, 28, 0.55);
+        -webkit-backdrop-filter: blur(40px) saturate(1.6);
+        backdrop-filter: blur(40px) saturate(1.6);
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55), inset 0 0 0 1px var(--stroke);
+      }
+      form.shake {
+        animation: shake 0.42s;
+      }
+      @keyframes shake {
+        20%,
+        60% {
+          transform: translateX(-8px);
+        }
+        40%,
+        80% {
+          transform: translateX(8px);
+        }
+      }
+      label {
+        display: grid;
+        gap: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .field {
+        position: relative;
+      }
+      input[type='text'],
+      input[type='password'] {
+        width: 100%;
+        height: 52px;
+        padding: 0 16px;
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        font: inherit;
+        font-size: 16px;
+        outline: none;
+        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      }
+      input:focus {
+        border-color: rgba(255, 255, 255, 0.55);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+      }
+      .field input {
+        padding-right: 52px;
+      }
+      .reveal {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .reveal:hover,
+      .reveal:focus-visible {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        outline: none;
+      }
+      .reveal svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+      .remember {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 4px 2px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text);
+        cursor: pointer;
+      }
+      .switch {
+        appearance: none;
+        flex: none;
+        position: relative;
+        width: 46px;
+        height: 28px;
+        margin: 0;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.16);
+        cursor: pointer;
+        transition: background 0.25s;
+      }
+      .switch::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+        transition: transform 0.25s var(--ease);
+      }
+      .switch:checked {
+        background: #34c759;
+      }
+      .switch:checked::after {
+        transform: translateX(18px);
+      }
+      .switch:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
+      }
+      button[type='submit'] {
+        position: relative;
+        height: 52px;
+        margin-top: 4px;
+        border: 0;
+        border-radius: 14px;
+        background: #fff;
+        color: #000;
+        font: inherit;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.25s var(--ease), box-shadow 0.25s, opacity 0.2s;
+      }
+      button[type='submit']:hover,
+      button[type='submit']:focus-visible {
+        outline: none;
+        transform: scale(1.02);
+        box-shadow: 0 12px 34px rgba(255, 255, 255, 0.18);
+      }
+      button[type='submit']:disabled {
+        opacity: 0.7;
+        cursor: default;
+        transform: none;
+      }
+      button[type='submit'].busy span {
+        visibility: hidden;
+      }
+      button[type='submit'].busy::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 22px;
+        height: 22px;
+        margin: -11px 0 0 -11px;
+        border-radius: 50%;
+        border: 2.5px solid rgba(0, 0, 0, 0.2);
+        border-top-color: #000;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .error {
+        min-height: 20px;
+        margin: -2px 0 -4px;
+        color: #ff8a8a;
+        font-size: 13.5px;
+        font-weight: 500;
+        text-align: center;
+      }
+      footer {
+        color: var(--dim);
+        font-size: 12.5px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <main id="main">
+      <div class="brand">
+        <img class="mark" src="icon.svg" alt="" />
+        <h1>Lumen</h1>
+        <p>Sign in to continue watching</p>
+      </div>
+
+      <form id="form" novalidate>
+        <label>
+          Username
+          <input type="text" id="user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus />
+        </label>
+        <label>
+          Password
+          <span class="field">
+            <input type="password" id="pass" name="password" autocomplete="current-password" required />
+            <button type="button" class="reveal" id="reveal" aria-label="Show password">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" /></svg>
+            </button>
+          </span>
+        </label>
+        <label class="remember" for="remember">
+          Stay signed in
+          <input type="checkbox" class="switch" id="remember" checked />
+        </label>
+        <div class="error" id="error" role="alert" aria-live="assertive"></div>
+        <button type="submit" id="submit"><span>Sign in</span></button>
+      </form>
+
+      <footer>Your playlist, beautifully.</footer>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const form = $('form');
+      const error = $('error');
+      const submit = $('submit');
+
+      // Only ever return to a page of this app (relative, so sub-path installs keep working)
+      function destination() {
+        const next = new URLSearchParams(location.search).get('next') || '';
+        if (next.startsWith('#')) return './' + next;
+        // Browsers keep the #fragment across the redirect to this page, so carry it back
+        const path = next.startsWith('/') && !next.startsWith('//') ? next.replace(/^\/+/, '') : '';
+        return './' + path + location.hash;
+      }
+
+      $('reveal').addEventListener('click', () => {
+        const p = $('pass');
+        const show = p.type === 'password';
+        p.type = show ? 'text' : 'password';
+        $('reveal').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        p.focus();
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const user = $('user').value.trim();
+        const pass = $('pass').value;
+        if (!user || !pass) {
+          error.textContent = 'Enter your username and password';
+          return;
+        }
+        error.textContent = '';
+        submit.disabled = true;
+        submit.classList.add('busy');
+        try {
+          const res = await fetch('api/login', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ user, pass, remember: $('remember').checked }),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (res.ok) {
+            $('main').classList.add('leaving');
+            setTimeout(() => location.replace(destination()), 320);
+            return;
+          }
+          error.textContent = body.error || 'Something went wrong';
+        } catch {
+          error.textContent = 'Can’t reach Lumen right now';
+        }
+        submit.disabled = false;
+        submit.classList.remove('busy');
+        form.classList.remove('shake');
+        void form.offsetWidth;
+        form.classList.add('shake');
+        $('pass').select();
+      });
+    </script>
+  </body>
+</html>

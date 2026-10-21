@@ -45,6 +45,10 @@ A fast, beautiful web player for M3U playlists and Xtream Codes accounts — liv
     <td><img src="docs/screenshots/settings-filter.jpg" alt="Country filter in settings"><br><b>Filter</b> — pick countries, hide groups, live preview</td>
     <td><img src="docs/screenshots/search.jpg" alt="Search"><br><b>Search</b> — instant, across channels, movies and series</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/login.jpg" alt="Sign-in page"><br><b>Sign in</b> — optional login with a proper sign-in page</td>
+    <td></td>
+  </tr>
 </table>
 
 <p align="center">
@@ -94,7 +98,7 @@ Everything is configured in the app and stored in `/data/settings.json`.
 - **Filter** — pick countries (e.g. just UK and NL) and only those are shown; hide groups or keywords; apply it to everything or live TV only. A live preview shows what's left. Countries are recognised from `tvg-country`, `tvg-id` (`BBCOne.uk`), and names or groups like `UK:`, `NL |`, `[DE]`, `FR -` or `Netherlands`.
 - **Display** — hide country codes in channel names (`| NL | ESPN 1` → `ESPN 1`), on by default.
 - **Playback** — stream proxy, artwork cache, ffmpeg video re-encoding.
-- **Login** — optional username and password (stored hashed).
+- **Login** — optional username and password (stored hashed). Visitors get a sign-in page with "stay signed in" (30 days); sessions are signed cookies, repeated wrong attempts are throttled, and changing the password signs out every other device. HTTP Basic auth is still accepted for scripts.
 
 <details>
 <summary><b>Environment variables</b> (optional, for automated deployments)</summary>

@@ -58,8 +58,15 @@ export const debounce = (fn, ms) => {
 
 // ---------- api ----------
 
+// The session ran out (or login was just turned on elsewhere): back to the login page, then here again
+export const toLogin = () => location.replace(`login?next=${encodeURIComponent(location.hash || '#/home')}`);
+
 export async function api(path, opts) {
   const res = await fetch(path, opts);
+  if (res.status === 401) {
+    toLogin();
+    throw new Error('Sign in required');
+  }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }

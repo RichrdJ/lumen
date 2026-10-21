@@ -10,6 +10,7 @@ import { epg, loadEpg, nowNext, range } from './epg.js';
 import { activeStreams, image, play, proxy, transcode } from './stream.js';
 import { xtreamSeriesInfo, xtreamVodInfo } from './xtream.js';
 import { acceptsGzip, sendJson } from './util.js';
+import { basicUser, clearSession, clientIp, issueSession, lockedFor, recordAttempt, sessionUser } from './auth.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
@@ -286,6 +287,13 @@ async function api(req, res, url) {
     return sendJson(req, res, clean);
   }
 
+  if (p === '/login' && req.method === 'POST') return login(req, res);
+  if (p === '/logout' && req.method === 'POST') {
+    clearSession(req, res);
+    return sendJson(req, res, { ok: true });
+  }
+  if (p === '/session') return sendJson(req, res, { auth: !!config.auth, user: sessionUser(req) || basicUser(req) });
+
   if (p === '/settings' && req.method === 'GET') return sendJson(req, res, publicSettings());
 
   if (p === '/settings' && req.method === 'PUT') {
@@ -299,6 +307,8 @@ async function api(req, res, url) {
       nowCache = { at: 0, data: null };
     }
     console.log(`[settings] saved${sourcesChanged ? ' (reloading sources)' : ''}${filterChanged ? ' (filter changed)' : ''}`);
+    // Whoever just set or changed the login stays signed in on this device
+    if (config.auth && (body.authPass || authBefore !== !!config.auth)) issueSession(req, res, config.auth.user, true);
     return sendJson(req, res, { ok: true, reloading: sourcesChanged, authChanged: authBefore !== !!config.auth, settings: publicSettings() });
   }
 
@@ -333,16 +343,37 @@ async function api(req, res, url) {
 
 // ---------- server ----------
 
-function authorized(req, res) {
-  if (!config.auth) return true;
-  const [scheme, token] = (req.headers.authorization || '').split(' ');
-  if (scheme === 'Basic' && token) {
-    const [user, ...rest] = Buffer.from(token, 'base64').toString().split(':');
-    if (checkPassword(user, rest.join(':'))) return true;
+// Reachable without a session: the login page and what it needs
+const PUBLIC = new Set(['/login', '/icon.svg', '/manifest.webmanifest', '/api/login', '/api/session']);
+
+function authorized(req, res, url) {
+  if (!config.auth || sessionUser(req) || basicUser(req) || PUBLIC.has(url.pathname)) return true;
+  if (url.pathname.startsWith('/api/')) {
+    sendJson(req, res, { error: 'Sign in required', login: true }, 401);
+    return false;
   }
-  res.writeHead(401, { 'www-authenticate': 'Basic realm="Lumen", charset="UTF-8"' });
-  res.end('Authentication required');
+  // Page loads go to the login screen; anything else is simply refused
+  const page = url.pathname === '/' || url.pathname.endsWith('.html') || /text\/html/.test(req.headers.accept || '');
+  if (page) {
+    res.writeHead(302, { location: `login?next=${encodeURIComponent(url.pathname + url.search)}`, 'cache-control': 'no-store' });
+  } else res.writeHead(401);
+  res.end();
   return false;
+}
+
+async function login(req, res) {
+  const ip = clientIp(req);
+  const wait = lockedFor(ip);
+  if (wait) return sendJson(req, res, { error: `Too many attempts. Try again in ${Math.ceil(wait / 60000)} min.` }, 429);
+  const { user = '', pass = '', remember = false } = await readJson(req).catch(() => ({}));
+  const ok = !!config.auth && checkPassword(String(user), String(pass));
+  recordAttempt(ip, ok);
+  if (!ok) {
+    await new Promise((r) => setTimeout(r, 450)); // slows down guessing
+    return sendJson(req, res, { error: 'Wrong username or password' }, 401);
+  }
+  issueSession(req, res, config.auth.user, !!remember);
+  return sendJson(req, res, { ok: true });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -351,21 +382,24 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/plain' });
       return res.end('ok');
     }
-    if (!authorized(req, res)) return;
     const url = new URL(req.url, 'http://localhost');
+    if (!authorized(req, res, url)) return;
+    if (url.pathname === '/login' && (!config.auth || sessionUser(req))) {
+      res.writeHead(302, { location: './', 'cache-control': 'no-store' });
+      return res.end();
+    }
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405);
       return res.end();
     }
-    return serveStatic(req, res, url.pathname);
+    return serveStatic(req, res, url.pathname === '/login' ? '/login.html' : url.pathname);
   } catch (e) {
     console.error('[http]', e);
     if (!res.headersSent) sendJson(req, res, { error: e.message }, 500);
     else res.destroy();
   }
 });
-
 // Refresh loop: re-armed whenever the interval setting changes
 let refreshTimer = null;
 let refreshing = null;

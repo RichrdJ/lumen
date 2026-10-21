@@ -110,12 +110,19 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
 
     <section class="set-card" id="security">
       <h2>Login</h2>
-      <p class="set-intro">Protect Lumen with a username and password${s.hasAuthPass ? ' (currently <b>on</b>)' : ' (currently off)'}.</p>
+      <p class="set-intro">Protect Lumen with a username and password${s.hasAuthPass ? ' (currently <b>on</b>)' : ' (currently off)'}. Visitors see a sign-in page; changing the password signs out every other device.</p>
       <div class="set-grid">
         ${field('authUser', 'Username', s.authUser)}
         ${field('authPass', 'Password', '', { type: 'password', placeholder: s.hasAuthPass ? '•••••••• (unchanged)' : '' })}
       </div>
-      ${s.hasAuthPass ? '<button class="btn btn-glass focusable" id="removeAuth">Remove login</button>' : ''}
+      ${
+        s.hasAuthPass
+          ? `<div class="set-actions">
+              <button class="btn btn-glass focusable" id="signOut">Sign out</button>
+              <button class="btn btn-glass focusable" id="removeAuth">Remove login</button>
+            </div>`
+          : ''
+      }
     </section>
 
     <p class="set-version" id="setVersion"></p>
@@ -270,6 +277,11 @@ export async function viewSettings(v, { token, isCurrent, onSaved }) {
   preview();
 
   // ---- save ----
+
+  $('#signOut', v)?.addEventListener('click', async () => {
+    await fetch('api/logout', { method: 'POST' }).catch(() => {});
+    location.replace('login');
+  });
 
   let removeAuth = false;
   $('#removeAuth', v)?.addEventListener('click', (e) => {
